@@ -1688,11 +1688,9 @@ window.addEventListener('online', () => { updateConnectionStatus(); toast('🌐 
 window.addEventListener('offline', () => { updateConnectionStatus(); toast('📴 Koneksi terputus. Data akan disimpan lokal.', 'amber'); });
 
 // ============================================================
-// SINKRONISASI SHEET.BEST (CLOUD BACKUP)
+// SINKRONISASI SHEET.BEST (FULL SYNC - MULTI DEVICE)
 // ============================================================
 
-// GANTI DENGAN URL SHEET.BEST ANDA!
-// Daftar di https://sheet.best jika belum punya
 const SHEET_BEST_URL = 'https://sheet.best/api/sheets/fd25bcb4-65cb-40fe-ad53-c8281ff4dd85';
 
 let deviceId = localStorage.getItem('pks_device_id');
@@ -1702,14 +1700,17 @@ if (!deviceId) {
 }
 console.log('📱 Device ID:', deviceId);
 
-// Sinkronisasi ke cloud
-async function syncToCloud(showToastMsg = true) {
+let lastSyncTime = localStorage.getItem('pks_last_sync') || 0;
+let syncInterval = null;
+
+// Push data ke cloud (kirim data dari perangkat ini)
+async function pushToCloud(showToastMsg = true) {
   if (!navigator.onLine) {
     if (showToastMsg) toast('📴 Tidak ada koneksi', 'amber');
     return false;
   }
   
-  if (showToastMsg) toast('🔄 Sinkronisasi ke cloud...');
+  if (showToastMsg) toast('⬆️ Mengirim data ke cloud...');
   
   try {
     // Siapkan data (tanpa base64 files)
@@ -1736,8 +1737,8 @@ async function syncToCloud(showToastMsg = true) {
       keterangan: item.keterangan || '',
       status: item.status || '',
       fileCount: item.fileCount || 0,
-      syncedAt: new Date().toISOString(),
-      deviceId: deviceId
+      deviceId: deviceId,
+      syncedAt: new Date().toISOString()
     }));
     
     // Hapus data lama di sheet
@@ -1751,52 +1752,72 @@ async function syncToCloud(showToastMsg = true) {
     });
     
     if (response.ok) {
-      if (showToastMsg) toast(`✅ Sync: ${dataToSync.length} data`);
-      console.log('✅ Sync success:', dataToSync.length, 'records');
+      if (showToastMsg) toast(`⬆️ ${dataToSync.length} data terkirim`);
+      console.log('✅ Push success:', dataToSync.length, 'records');
       return true;
     } else {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      throw new Error('HTTP ' + response.status);
     }
   } catch (error) {
-    console.error('Sync error:', error);
-    if (showToastMsg) toast('❌ Gagal sinkronisasi: ' + error.message, 'red');
+    console.error('Push error:', error);
+    if (showToastMsg) toast('❌ Gagal mengirim data', 'red');
     return false;
   }
 }
 
-// Ambil data dari cloud
+// Pull data dari cloud (ambil data dari semua perangkat)
 async function pullFromCloud(showToastMsg = true) {
   if (!navigator.onLine) {
     if (showToastMsg) toast('📴 Tidak ada koneksi', 'amber');
     return false;
   }
   
-  if (showToastMsg) toast('📥 Mengambil data dari cloud...');
+  if (showToastMsg) toast('⬇️ Mengambil data dari cloud...');
   
   try {
     const response = await fetch(SHEET_BEST_URL);
     const cloudData = await response.json();
     
     if (cloudData && cloudData.length > 0) {
+      // Gabungkan data dari cloud dengan data lokal
       const existingIds = new Set(DB.map(d => d.id));
       let newCount = 0;
+      let updatedCount = 0;
       
       cloudData.forEach(cloudItem => {
         if (!existingIds.has(cloudItem.id)) {
+          // Data baru dari cloud
           DB.push({
             ...cloudItem,
             files: [],
             synced: true
           });
           newCount++;
+        } else {
+          // Cek apakah data di cloud lebih baru
+          const localItem = DB.find(d => d.id === cloudItem.id);
+          if (localItem && new Date(cloudItem.syncedAt) > new Date(localItem.syncedAt || 0)) {
+            // Update data lokal dengan data cloud yang lebih baru
+            Object.assign(localItem, {
+              ...cloudItem,
+              files: localItem.files || []
+            });
+            updatedCount++;
+          }
         }
       });
       
-      if (newCount > 0) {
+      if (newCount > 0 || updatedCount > 0) {
+        // Update nextId
         nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
         await saveData(DB);
-        if (showToastMsg) toast(`📥 ${newCount} data baru dari cloud`);
+        
+        if (showToastMsg) {
+          let msg = [];
+          if (newCount > 0) msg.push(`${newCount} baru`);
+          if (updatedCount > 0) msg.push(`${updatedCount} update`);
+          toast(`⬇️ ${msg.join(', ')} dari cloud`);
+        }
         
         // Refresh tampilan
         if (document.getElementById('page-data').classList.contains('active')) {
@@ -1809,57 +1830,94 @@ async function pullFromCloud(showToastMsg = true) {
       } else {
         if (showToastMsg) toast('✅ Data sudah terbaru');
       }
+      
+      lastSyncTime = Date.now();
+      localStorage.setItem('pks_last_sync', lastSyncTime);
       return true;
     } else {
-      if (showToastMsg) toast('☁️ Cloud kosong, belum ada data');
+      if (showToastMsg) toast('☁️ Cloud kosong');
       return true;
     }
   } catch (error) {
     console.error('Pull error:', error);
-    if (showToastMsg) toast('❌ Gagal mengambil data: ' + error.message, 'red');
+    if (showToastMsg) toast('❌ Gagal mengambil data', 'red');
     return false;
   }
 }
 
-// Sinkronisasi dua arah
+// Sinkronisasi penuh (push + pull)
 async function fullSync() {
   if (!navigator.onLine) {
     toast('📴 Tidak ada koneksi', 'amber');
     return;
   }
   
-  toast('🔄 Sinkronisasi dua arah...');
+  toast('🔄 Sinkronisasi penuh...');
   
-  const pushSuccess = await syncToCloud(false);
+  // Push data lokal ke cloud
+  const pushSuccess = await pushToCloud(false);
+  
+  // Pull data dari cloud
   const pullSuccess = await pullFromCloud(false);
   
-  if (pushSuccess || pullSuccess) {
+  if (pushSuccess && pullSuccess) {
     toast('✅ Sinkronisasi selesai');
+  } else if (pushSuccess) {
+    toast('⚠️ Push berhasil, Pull gagal', 'amber');
+  } else if (pullSuccess) {
+    toast('⚠️ Pull berhasil, Push gagal', 'amber');
   } else {
     toast('❌ Sinkronisasi gagal', 'red');
   }
 }
 
-// Tambah tombol sync ke filter bar
+// Auto sync otomatis (pull data baru dari cloud)
+async function autoPull() {
+  if (!navigator.onLine) return;
+  
+  // Cek apakah sudah lebih dari 30 detik sejak sync terakhir
+  const now = Date.now();
+  if (now - lastSyncTime > 30000) { // 30 detik
+    console.log('🔄 Auto pull...');
+    await pullFromCloud(false);
+  }
+}
+
+// Memulai auto sync interval
+function startAutoSync() {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(() => {
+    autoPull();
+  }, 30000); // Setiap 30 detik
+}
+
+function stopAutoSync() {
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+}
+
+// Tambah tombol sync
 function addSyncButtons() {
   const toolbar = document.querySelector('#page-data .filter-bar');
   if (toolbar && !document.getElementById('sync-cloud-btn')) {
     toolbar.insertAdjacentHTML('beforeend', `
-      <button class="btn btn-primary btn-sm" id="sync-cloud-btn" onclick="fullSync()" title="Sinkronisasi dua arah">☁️ Sync Cloud</button>
-      <button class="btn btn-secondary btn-sm" id="pull-cloud-btn" onclick="pullFromCloud(true)" title="Ambil data dari cloud">📥 Pull</button>
+      <button class="btn btn-primary btn-sm" id="sync-cloud-btn" onclick="fullSync()" title="Sinkronisasi penuh (kirim + ambil)">☁️ Sync Penuh</button>
+      <button class="btn btn-secondary btn-sm" id="pull-cloud-btn" onclick="pullFromCloud(true)" title="Ambil data dari cloud">⬇️ Pull</button>
+      <button class="btn btn-secondary btn-sm" id="push-cloud-btn" onclick="pushToCloud(true)" title="Kirim data ke cloud">⬆️ Push</button>
     `);
-    console.log('✅ Sync buttons added to toolbar');
-  } else {
-    console.log('⚠️ Toolbar not found or buttons already exist');
+    console.log('✅ Sync buttons added');
   }
 }
 
-// Auto sync setelah simpan
+// Auto sync setelah simpan data
 const originalSimpanData = window.simpanData;
 window.simpanData = async function() {
   const result = await originalSimpanData();
   if (navigator.onLine && result !== false) {
-    setTimeout(() => syncToCloud(false), 1000);
+    await pushToCloud(false);
+    await autoPull();
   }
   return result;
 };
@@ -1869,16 +1927,41 @@ const originalSimpanEdit = window.simpanEdit;
 window.simpanEdit = async function() {
   await originalSimpanEdit();
   if (navigator.onLine) {
-    setTimeout(() => syncToCloud(false), 1000);
+    await pushToCloud(false);
+    await autoPull();
   }
 };
 
+// Auto sync setelah hapus
+const originalHapusData = window.hapusData;
+window.hapusData = async function(id) {
+  await originalHapusData(id);
+  if (navigator.onLine) {
+    await pushToCloud(false);
+    await autoPull();
+  }
+};
+
+// Sinkronisasi pertama kali saat aplikasi dimuat
+async function initialSync() {
+  if (navigator.onLine) {
+    console.log('🔄 Initial sync...');
+    await pullFromCloud(false);
+    startAutoSync();
+  }
+}
+
 // Jalankan saat halaman siap
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', addSyncButtons);
+  document.addEventListener('DOMContentLoaded', () => {
+    addSyncButtons();
+    initialSync();
+  });
 } else {
   addSyncButtons();
+  initialSync();
 }
+  
   // ============================================================
 // INISIALISASI
 // ============================================================
