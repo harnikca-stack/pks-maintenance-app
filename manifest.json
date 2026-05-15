@@ -9,9 +9,10 @@
   "icons": [
     {
       "src": "icon-145.png",
-      "sizes": "144x144",
+      "sizes": "250x250",
       "type": "image/png",
       "purpose": "any maskable"
+      "background_color": "#0000FF80",
     }
   ]
 }
