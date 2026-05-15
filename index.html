@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1b4332">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>Sistem Laporan Harian Maintenance PKS</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --surface: #ffffff;
+    --surface2: #faf9f6;
+    --border: #e0d9ce;
+    --border-strong: #c8bfb0;
+    --text: #1a1714;
+    --text-muted: #6b6259;
+    --text-light: #9c9088;
+    --accent: #2d6a4f;
+    --accent-light: #e8f4f0;
+    --accent-dark: #1b4332;
+    --amber: #b45309;
+    --amber-light: #fef3c7;
+    --red: #b91c1c;
+    --red-light: #fee2e2;
+    --blue: #1e40af;
+    --blue-light: #dbeafe;
+    --teal: #0f766e;
+    --teal-light: #ccfbf1;
+    --shadow: 0 1px 3px rgba(26,23,20,0.06), 0 4px 12px rgba(26,23,20,0.04);
+    --shadow-lg: 0 4px 20px rgba(26,23,20,0.1);
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+
+  /* ── HEADER ── */
+  header { background: var(--accent-dark); color: #fff; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-title { font-family: 'DM Serif Display', serif; font-size: 17px; letter-spacing: 0.01em; font-weight: 400; }
+  .header-sub { font-size: 11px; opacity: 0.7; margin-top: 1px; }
+  .header-nav { display: flex; gap: 4px; }
+  .nav-btn { padding: 7px 16px; border-radius: 6px; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em; color: rgba(255,255,255,0.75); background: transparent; }
+  .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .nav-btn.active { background: var(--accent); color: #fff; }
+
+  /* Status Bar */
+  #status-bar { background: #1b4332; color: white; text-align: center; padding: 6px; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s ease; }
+  #sync-status { transition: opacity 0.2s; }
+
+  /* ── LAYOUT ── */
+  .app { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+  .section-header { margin-bottom: 20px; display: flex; align-items: flex-end; justify-content: space-between; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; color: var(--text); letter-spacing: -0.02em; }
+  .section-desc { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── CARD ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+  .card-header { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .card-icon { font-size: 18px; }
+  .card-label { font-weight: 600; font-size: 14px; color: var(--text); }
+  .card-sublabel { font-size: 12px; color: var(--text-muted); }
+  .card-body { padding: 22px; }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.span-2 { grid-column: span 2; }
+  .form-group.span-3 { grid-column: span 3; }
+  label { font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  label .req { color: var(--red); margin-left: 2px; }
+  input, select, textarea { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; transition: border-color 0.15s, box-shadow 0.15s; width: 100%; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,106,79,0.12); background: var(--surface); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  select { cursor: pointer; }
+  .form-divider { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); padding: 16px 0 6px; border-top: 1px solid var(--border); margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+  .form-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .time-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+
+  /* ── BUTTONS ── */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border-radius: var(--radius); border: none; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,106,79,0.3); }
+  .btn-secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); color: var(--text); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid #fca5a5; padding: 6px 12px; font-size: 12px; }
+  .btn-danger:hover { background: var(--red-light); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-teal { background: var(--teal); color: #fff; }
+  .btn-teal:hover { background: #0d5c56; transform: translateY(-1px); }
+  .btn-amber { background: var(--amber); color: #fff; }
+  .btn-amber:hover { background: #92400e; }
+  .btn-edit { background: transparent; color: var(--blue); border: 1px solid #93c5fd; padding: 5px 10px; font-size: 11px; }
+  .btn-edit:hover { background: var(--blue-light); }
+
+  .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 18px 22px; border-top: 1px solid var(--border); background: var(--surface2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+  /* ── TABLE ── */
+  .table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: 12.5px; }
+  thead tr { background: var(--accent-dark); color: #fff; }
+  th { padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--accent-light); }
+
+  /* ── BADGE ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-selesai { background: #d1fae5; color: #065f46; }
+  .badge-pending { background: var(--amber-light); color: #78350f; }
+  .badge-proses { background: var(--blue-light); color: #1e3a8a; }
+  .badge-stasiun { background: var(--teal-light); color: var(--teal); border: 1px solid #99f6e4; }
+  .badge-shift1 { background: #fef9e6; color: #b45309; border: 1px solid #fed7aa; }
+  .badge-shift2 { background: #e6f0fa; color: #1e3a8a; border: 1px solid #bfdbfe; }
+
+  /* ── STAT CARDS ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .stat-card.green::before { background: var(--accent); }
+  .stat-card.amber::before { background: #f59e0b; }
+  .stat-card.blue::before { background: #3b82f6; }
+  .stat-card.red::before { background: var(--red); }
+  .stat-number { font-family: 'DM Serif Display', serif; font-size: 32px; font-weight: 400; color: var(--text); letter-spacing: -0.03em; line-height: 1; margin-bottom: 6px; }
+  .stat-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-sub { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-bar select, .filter-bar input { width: auto; min-width: 150px; font-size: 13px; }
+  .filter-bar input { min-width: 220px; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 28px; right: 28px; background: var(--accent-dark); color: #fff; padding: 12px 18px; border-radius: var(--radius); font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow-lg); transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 9999; display: flex; align-items: center; gap: 8px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── UPLOAD ── */
+  .upload-area { border: 2px dashed var(--border-strong); border-radius: var(--radius); padding: 16px; background: var(--surface2); cursor: pointer; transition: all 0.2s; text-align: center; position: relative; }
+  .upload-area:hover, .upload-area.drag-over { border-color: var(--accent); background: var(--accent-light); }
+  .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .upload-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .preview-item { position: relative; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+  .preview-item img { width: 80px; height: 80px; object-fit: cover; display: block; }
+  .preview-item .preview-doc { width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); padding: 6px; text-align: center; gap: 4px; }
+  .preview-item .preview-doc span { font-size: 24px; }
+  .preview-item .del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .preview-item .del-btn:hover { background: var(--red); }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(3px); z-index: 500; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface); border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.25); width: 420px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+  .modal-box.wide { width: 580px; }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--accent-dark); color: #fff; }
+  .modal-header-title { font-weight: 700; font-size: 14px; }
+  .modal-close { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .modal-close:hover { background: rgba(255,255,255,0.25); }
+  .modal-search { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .modal-search input { font-size: 13px; padding: 8px 12px; }
+  .modal-body { flex: 1; overflow-y: auto; padding: 8px; }
+  .modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface2); }
+  .selected-count { font-size: 12px; color: var(--text-muted); }
+
+  /* ── WORKER ITEMS ── */
+  .worker-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius); cursor: pointer; transition: background 0.12s; border: 1px solid transparent; }
+  .worker-item:hover { background: var(--accent-light); border-color: var(--accent); }
+  .worker-item.selected { background: var(--accent-light); border-color: var(--accent); }
+  .worker-avatar { width: 36px; height: 36px; background: var(--accent-dark); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .worker-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .worker-jabatan { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .worker-check { margin-left: auto; width: 20px; height: 20px; border: 2px solid var(--border-strong); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; flex-shrink: 0; transition: all 0.15s; }
+  .worker-item.selected .worker-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .worker-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; background: var(--accent-light); border: 1px solid var(--accent); color: var(--accent-dark); border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+  .chip-remove { background: none; border: none; cursor: pointer; color: var(--accent-dark); font-size: 13px; line-height: 1; padding: 0; opacity: 0.6; }
+  .chip-remove:hover { opacity: 1; color: var(--red); }
+  .btn-pick-worker { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius); border: 1.5px solid var(--accent); background: var(--accent-light); color: var(--accent-dark); font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn-pick-worker:hover { background: var(--accent); color: #fff; }
+
+  /* ── STASIUN PICKER ── */
+  .stasiun-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 16px; }
+  .stasiun-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: var(--radius); cursor: pointer; transition: all 0.12s; border: 1.5px solid var(--border); background: var(--surface2); }
+  .stasiun-item:hover { border-color: var(--teal); background: var(--teal-light); }
+  .stasiun-item.selected { border-color: var(--teal); background: var(--teal-light); }
+  .stasiun-icon { font-size: 20px; flex-shrink: 0; }
+  .stasiun-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .stasiun-check { margin-left: auto; width: 20px; height: 20px; border: 2px solid var(--border-strong); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; flex-shrink: 0; transition: all 0.15s; }
+  .stasiun-item.selected .stasiun-check { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .stasiun-modal-header { background: linear-gradient(135deg, #0f766e, #134e4a); }
+  .selected-stasiun-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--teal-light); border: 1px solid var(--teal); color: var(--teal); border-radius: var(--radius); padding: 6px 12px; font-size: 13px; font-weight: 600; }
+
+  /* ── KET BAHAN PICKER ── */
+  .ket-bahan-grid { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
+  .ket-bahan-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--radius); cursor: pointer; transition: all 0.12s; border: 1.5px solid var(--border); background: var(--surface2); }
+  .ket-bahan-item:hover { border-color: var(--amber); background: var(--amber-light); }
+  .ket-bahan-item.selected { border-color: var(--amber); background: var(--amber-light); }
+  .ket-bahan-icon { font-size: 20px; flex-shrink: 0; }
+  .ket-bahan-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .ket-bahan-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .ket-bahan-check { margin-left: auto; width: 20px; height: 20px; border: 2px solid var(--border-strong); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; flex-shrink: 0; transition: all 0.15s; }
+  .ket-bahan-item.selected .ket-bahan-check { background: var(--amber); border-color: var(--amber); color: #fff; }
+  .ket-bahan-modal-header { background: linear-gradient(135deg, #b45309, #92400e); }
+
+  /* ── IMAGE LIGHTBOX ── */
+  .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+  .lightbox-overlay.open { display: flex; }
+  .lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: var(--radius-lg); box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+  .lightbox-nav { display: flex; gap: 10px; align-items: center; }
+  .lightbox-counter { color: rgba(255,255,255,0.7); font-size: 13px; }
+
+  /* ── EDIT MODAL ── */
+  .edit-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+  /* ── REPORT SECTIONS ── */
+  .report-container {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+  }
+  .report-header {
+    background: linear-gradient(135deg, #1b4332, #2d6a4f);
+    color: #fff;
+    padding: 24px 28px;
+    text-align: center;
+  }
+  .report-header small {
+    font-size: 11px;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .report-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    font-weight: 400;
+  }
+  .report-meta {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-top: 6px;
+  }
+  .report-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .report-summary-item {
+    padding: 18px 16px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .report-summary-item:last-child { border-right: none; }
+  .rsi-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--accent-dark);
+    line-height: 1.2;
+  }
+  .rsi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+  .report-progress-bar {
+    background: var(--surface);
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .progress-track {
+    background: var(--border);
+    border-radius: 20px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, var(--accent), var(--teal));
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.5s ease;
+  }
+  .progress-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .station-group-header {
+    background: linear-gradient(90deg, #1b4332, #2d6a4f);
+    color: #fff;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .station-group-header .station-badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+  }
+  .report-table-wrapper {
+    overflow-x: auto;
+    background: var(--surface);
+  }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .report-table th {
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .report-table tr:last-child td { border-bottom: none; }
+  .subtotal-row {
+    background: var(--surface2);
+    font-weight: 600;
+    border-top: 2px solid var(--border);
+  }
+  .subtotal-row td {
+    padding: 8px 12px;
+    color: var(--accent-dark);
+  }
+  .no-data-report {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+  }
+  .no-data-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+  .info-bar {
+    background: var(--surface2);
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .info-bar span:first-child { color: var(--text-muted); }
+  .info-bar strong { color: var(--accent-dark); }
+
+  @media print {
+    header, .nav-btn, .filter-bar, .form-actions, .btn, .no-print, .card.no-print, #status-bar { display: none !important; }
+    .app { padding: 0; max-width: 100%; }
+    body { background: white; font-size: 11px; }
+    .report-container { box-shadow: none; border: 1px solid #ccc; }
+    .report-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .station-group-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .report-table th { background: #e0e0e0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { display: block !important; }
+    .page:not(.print-target) { display: none !important; }
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .time-grid { grid-template-columns: 1fr 1fr; }
+    .form-grid.cols-3 { grid-template-columns: 1fr; }
+    .form-grid.cols-2 { grid-template-columns: 1fr; }
+    .header-nav { display: none; }
+    .stasiun-grid { grid-template-columns: 1fr; }
+    .report-summary-grid { grid-template-columns: repeat(3, 1fr); }
+    .station-group-header { gap: 6px; }
+    .station-group-header .station-badge { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <div class="header-icon">🌴</div>
+    <div>
+      <div class="header-title">Maintenance Report System — PKS</div>
+      <div class="header-sub">Pabrik Kelapa Sawit · Laporan Harian Teknisi</div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('input')">📝 Input Harian</button>
+    <button class="nav-btn" onclick="showPage('data')">📋 Data Kegiatan</button>
+    <button class="nav-btn" onclick="showPage('laporan')">📊 Laporan</button>
+  </nav>
+</header>
+
+<!-- Status Bar -->
+<div id="status-bar">
+  <span id="status-icon">🟢</span>
+  <span id="status-text">Online</span>
+  <span id="sync-status" style="opacity:0.7; font-size:10px;"></span>
+</div>
+
+<div class="app">
+
+<!-- PAGE: INPUT -->
+<div class="page active" id="page-input">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Input Laporan Harian</div>
+      <div class="section-desc">Catat realisasi pekerjaan maintenance harian</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="showPage('data')">📋 Lihat Data</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔧</span>
+      <div>
+        <div class="card-label">Form Input Kegiatan</div>
+        <div class="card-sublabel">Isi satu kegiatan per baris, klik "Simpan" untuk menyimpan</div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="form-divider">📅 Informasi Dasar</div>
+      <div class="form-grid cols-3" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Bulan <span class="req">*</span></label>
+          <select id="f-bulan">
+            <option value="">-- Pilih Bulan --</option>
+            <option>Januari</option><option>Februari</option><option>Maret</option>
+            <option>April</option><option>Mei</option><option>Juni</option>
+            <option>Juli</option><option>Agustus</option><option>September</option>
+            <option>Oktober</option><option>November</option><option>Desember</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tanggal <span class="req">*</span></label>
+          <input type="date" id="f-tanggal">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="1">✅ Selesai</option>
+            <option value="Selesai 100%">✅ Selesai 100%</option>
+            <option value="Pending">⏳ Pending</option>
+            <option value="Proses">🔄 Proses</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-divider" style="margin-top:18px;">🏭 Stasiun</div>
+      <div style="margin-top:10px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;">Pilih Stasiun Pekerjaan <span style="color:var(--red);">*</span></div>
+            <div style="font-size:11px;color:var(--text-muted);">Klik tombol untuk memilih lokasi stasiun</div>
+          </div>
+          <button class="btn-pick-worker" style="border-color:var(--teal);background:var(--teal-light);color:var(--teal);" onclick="openStasiunModal()">🏭 Pilih Stasiun</button>
+        </div>
+        <div style="margin-top:10px;" id="selected-stasiun-display">
+          <span style="font-size:12px;color:var(--text-light);font-style:italic;">Belum ada stasiun dipilih...</span>
+        </div>
+      </div>
+
+      <div class="form-divider" style="margin-top:18px;">⏰ Shift Pekerjaan</div>
+      <div style="margin-top:10px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 12px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border);">
+            <input type="radio" name="shift" value="Shift 1 (Siang)" style="width: 18px; height: 18px; margin: 0; cursor: pointer;" onchange="setShift('Shift 1 (Siang)')">
+            <span style="font-size: 13px; font-weight: 600;">☀️ Shift 1 (Siang)</span>
+            <span style="font-size: 11px; color: var(--text-muted);">08:00 - 16:00</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 12px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border);">
+            <input type="radio" name="shift" value="Shift 2 (Malam)" style="width: 18px; height: 18px; margin: 0; cursor: pointer;" onchange="setShift('Shift 2 (Malam)')">
+            <span style="font-size: 13px; font-weight: 600;">🌙 Shift 2 (Malam)</span>
+            <span style="font-size: 11px; color: var(--text-muted);">16:00 - 00:00</span>
+          </label>
+        </div>
+        <div id="selected-shift-display" style="margin-top: 8px; font-size: 11px; color: var(--text-muted);"></div>
+      </div>
+
+      <div class="form-divider" style="margin-top:18px;">📌 Detail Pekerjaan</div>
+      <div class="form-grid full" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Jenis Pekerjaan (Program)</label>
+          <input type="text" id="f-jenis" placeholder="Contoh: Bersihkan Motoran Stasiun Press Dan Klarifikasi (boleh kosong untuk pekerjaan tambahan)">
+        </div>
+      </div>
+      <div class="form-grid full" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Realisasi Pekerjaan</label>
+          <textarea id="f-realisasi" placeholder="Uraian realisasi / hasil pekerjaan yang dilakukan..."></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label style="display:block;margin-bottom:6px;">Foto / Dokumentasi Kegiatan</label>
+        <div class="upload-area" id="upload-area" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <input type="file" id="f-upload" accept="image/*,application/pdf,.doc,.docx" multiple onchange="handleFiles(this.files)">
+          <div style="font-size:22px;pointer-events:none;">📎</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-muted);pointer-events:none;">Klik atau seret file ke sini</div>
+          <div class="upload-hint" style="pointer-events:none;">Foto JPG/PNG · PDF · Dokumen Word · Maks. 5 file</div>
+        </div>
+        <div class="upload-previews" id="upload-previews"></div>
+      </div>
+
+      <div class="form-divider" style="margin-top:18px;">📦 Bahan Kerja</div>
+      <div class="form-grid cols-3" style="margin-top:10px;">
+        <div class="form-group span-2">
+          <label>Nama Bahan</label>
+          <input type="text" id="f-bahan" placeholder="Contoh: Grease Pertamina NLGI 3">
+        </div>
+        <div class="form-group">
+          <label>Satuan</label>
+          <select id="f-satuan">
+            <option value="">--</option>
+            <option>Kg</option><option>Ltr</option><option>Pcs</option><option>Btg</option>
+            <option>Lbr</option><option>Set</option><option>Tbg</option><option>Unit</option><option>Psg</option><option>Mtr</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid cols-3" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Keterangan Bahan</label>
+          <div style="display:flex;gap:6px;align-items:stretch;">
+            <input type="text" id="f-ket-bahan" placeholder="Bahan Sisa / Bahan Bekas / dll" style="flex:1;">
+            <button type="button" style="padding:8px 10px;border-radius:var(--radius);border:1.5px solid var(--amber);background:var(--amber-light);color:var(--amber);cursor:pointer;font-size:14px;white-space:nowrap;font-weight:600;" onclick="openKetBahanModal()" title="Pilih Keterangan Bahan">📋</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fisik Program</label>
+          <input type="text" id="f-fisik-prog" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Fisik Realisasi</label>
+          <input type="text" id="f-fisik-real" placeholder="0">
+        </div>
+      </div>
+
+      <div class="form-divider" style="margin-top:18px;">👷 Tenaga Kerja & Jam Kerja</div>
+      <div style="margin-top:10px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;">Nama Pekerja yang Terlibat</div>
+            <div style="font-size:11px;color:var(--text-muted);">Pilih dari daftar anggota Tim Harnik</div>
+          </div>
+          <button class="btn-pick-worker" onclick="openWorkerModal()">👷 Pilih Pekerja</button>
+        </div>
+        <div class="worker-chips" id="worker-chips">
+          <span style="font-size:12px;color:var(--text-light);font-style:italic;">Belum ada pekerja dipilih...</span>
+        </div>
+      </div>
+
+      <div class="time-grid" style="margin-top:12px;">
+        <div class="form-group">
+          <label>TK Program</label>
+          <input type="number" id="f-tk-prog" min="0" max="20" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>TK Realisasi</label>
+          <input type="number" id="f-tk-real" min="0" max="20" placeholder="0" readonly style="background:#f0f0eb;">
+        </div>
+        <div class="form-group">
+          <label>Jam Start Program</label>
+          <input type="number" id="f-start-prog" min="0" max="24" placeholder="8">
+        </div>
+        <div class="form-group">
+          <label>Jam Start Realisasi</label>
+          <input type="number" id="f-start-real" min="0" max="24" placeholder="8">
+        </div>
+      </div>
+      <div class="time-grid" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Jam Off Program</label>
+          <input type="number" id="f-off-prog" min="0" max="24" placeholder="16">
+        </div>
+        <div class="form-group">
+          <label>Jam Off Realisasi</label>
+          <input type="number" id="f-off-real" min="0" max="24" placeholder="16">
+        </div>
+        <div class="form-group span-2">
+          <label>Keterangan / Catatan</label>
+          <input type="text" id="f-keterangan" placeholder="WO Proses Selesai 100% / keterangan tambahan...">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="resetForm()">🔄 Reset Form</button>
+      <button class="btn btn-primary" onclick="simpanData()">💾 Simpan Kegiatan</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: DATA -->
+<div class="page" id="page-data">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Data Kegiatan</div>
+      <div class="section-desc">Semua kegiatan yang telah diinput</div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="showPage('input')">➕ Input Baru</button>
+  </div>
+
+  <div class="stats-grid" id="stats-container"></div>
+
+  <div class="filter-bar">
+    <select id="filter-bulan" onchange="renderTable()">
+      <option value="">Semua Bulan</option>
+      <option>Januari</option><option>Februari</option><option>Maret</option>
+      <option>April</option><option>Mei</option><option>Juni</option>
+      <option>Juli</option><option>Agustus</option><option>September</option>
+      <option>Oktober</option><option>November</option><option>Desember</option>
+    </select>
+    <select id="filter-stasiun" onchange="renderTable()">
+      <option value="">Semua Stasiun</option>
+    </select>
+    <select id="filter-status" onchange="renderTable()">
+      <option value="">Semua Status</option>
+      <option value="selesai">✅ Selesai</option>
+      <option value="selesai100">✅ Selesai 100%</option>
+      <option value="pending">⏳ Pending</option>
+      <option value="proses">🔄 Proses</option>
+    </select>
+    <input type="text" id="filter-search" placeholder="🔍 Cari pekerjaan..." oninput="renderTable()" style="min-width:240px;">
+    <button class="btn btn-teal btn-sm" onclick="eksporXLSX()">⬇ Ekspor XLSX</button>
+    <button class="btn btn-secondary btn-sm" onclick="backupData()">💾 Backup</button>
+    <label class="btn btn-secondary btn-sm" style="cursor:pointer;">📂 Restore
+      <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreData(event)">
+    </label>
+    <button class="btn btn-secondary btn-sm" onclick="checkStorageInfo()">ℹ️ Storage</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="data-table">
+      <thead>
+        <tr><th>#</th><th>Bulan</th><th>Tanggal</th><th>Shift</th><th>Stasiun</th><th>Jenis Pekerjaan</th><th>Bahan</th><th>Pekerja</th><th style="text-align:center;">TK</th><th>Jam</th><th>Status</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="data-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PAGE: LAPORAN -->
+<div class="page" id="page-laporan">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Laporan Rekapitulasi</div>
+      <div class="section-desc">Laporan profesional per stasiun</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm no-print" onclick="cetakLaporan()">🖨 Print / PDF</button>
+    </div>
+  </div>
+
+  <div class="card no-print" style="margin-bottom:20px;">
+    <div class="card-body" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="min-width:160px;">
+        <label>Jenis Laporan</label>
+        <select id="lap-type" onchange="renderLaporan()">
+          <option value="bulanan">📅 Laporan Bulanan</option>
+          <option value="tahunan">📆 Laporan Tahunan</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:160px;" id="lap-bulan-wrap">
+        <label>Pilih Bulan</label>
+        <select id="lap-bulan" onchange="renderLaporan()">
+          <option>Januari</option><option>Februari</option><option>Maret</option>
+          <option>April</option><option>Mei</option><option>Juni</option>
+          <option>Juli</option><option>Agustus</option><option>September</option>
+          <option>Oktober</option><option>November</option><option>Desember</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:120px;">
+        <label>Tahun</label>
+        <select id="lap-tahun" onchange="renderLaporan()">
+          <option>2026</option><option>2025</option><option>2027</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:160px;">
+        <label>Filter Stasiun</label>
+        <select id="lap-stasiun" onchange="renderLaporan()">
+          <option value="">Semua Stasiun</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="laporan-output"></div>
+</div>
+
+</div><!-- .app -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="worker-modal" onclick="closeWorkerModal(event)">
+  <div class="modal-box">
+    <div class="modal-header"><div class="modal-header-title">👷 Pilih Pekerja — Tim Harnik</div><button class="modal-close" onclick="document.getElementById('worker-modal').classList.remove('open')">✕</button></div>
+    <div class="modal-search"><input type="text" id="worker-search" placeholder="🔍 Cari nama pekerja..." oninput="filterWorkers()" autocomplete="off"></div>
+    <div class="modal-body" id="worker-list"></div>
+    <div class="modal-footer"><span class="selected-count" id="selected-count">0 pekerja dipilih</span><div style="display:flex;gap:8px;"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('worker-modal').classList.remove('open')">Batal</button><button class="btn btn-primary btn-sm" onclick="confirmWorkers()">✓ Konfirmasi</button></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stasiun-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <div class="modal-header stasiun-modal-header"><div class="modal-header-title">🏭 Pilih Stasiun Pekerjaan</div><button class="modal-close" onclick="document.getElementById('stasiun-modal').classList.remove('open')">✕</button></div>
+    <div class="modal-body" style="padding:0;"><div class="stasiun-grid" id="stasiun-list"></div></div>
+    <div class="modal-footer"><span class="selected-count" id="selected-stasiun-count">Belum dipilih</span><div style="display:flex;gap:8px;"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('stasiun-modal').classList.remove('open')">Batal</button><button class="btn btn-teal btn-sm" onclick="confirmStasiun()">✓ Konfirmasi</button></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ket-bahan-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <div class="modal-header ket-bahan-modal-header"><div class="modal-header-title">📦 Keterangan Bahan</div><button class="modal-close" onclick="document.getElementById('ket-bahan-modal').classList.remove('open')">✕</button></div>
+    <div class="modal-body" style="padding:0;"><div class="ket-bahan-grid" id="ket-bahan-list"></div><div style="padding:0 16px 16px;"><div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Keterangan Lainnya</div><input type="text" id="ket-bahan-custom" placeholder="Tulis keterangan bahan lainnya..." style="width:100%;"></div></div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('ket-bahan-modal').classList.remove('open')">Batal</button><button class="btn btn-amber btn-sm" onclick="confirmKetBahan()">✓ Pilih</button></div>
+  </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox" onclick="if(event.target===this||event.target.id==='lightbox')closeLightbox()">
+  <div style="position:relative;"><img id="lightbox-img" class="lightbox-img" src="" alt=""><button onclick="closeLightbox()" style="position:absolute;top:-12px;right:-12px;background:var(--red);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;">✕</button></div>
+  <div class="lightbox-nav"><button onclick="lightboxPrev()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:var(--radius);padding:6px 14px;cursor:pointer;font-size:18px;">‹</button><span class="lightbox-counter" id="lightbox-counter"></span><button onclick="lightboxNext()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:var(--radius);padding:6px 14px;cursor:pointer;font-size:18px;">›</button></div>
+</div>
+
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box wide" style="max-height:95vh;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#1e40af,#1e3a8a);"><div class="modal-header-title">✏️ Edit Kegiatan</div><button class="modal-close" onclick="document.getElementById('edit-modal').classList.remove('open')">✕</button></div>
+    <div class="edit-modal-body" id="edit-modal-body"></div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-modal').classList.remove('open')">Batal</button><button class="btn btn-primary btn-sm" onclick="simpanEdit()">💾 Simpan Perubahan</button></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// KONSTANTA
+// ============================================================
+const STORAGE_KEY = 'pks_laporan_data_v2';
+const DB_NAME = 'PKS_Laporan_DB';
+const DB_VERSION = 1;
+const STORE_NAME = 'laporan_data';
+
+const STASIUN_LIST = [
+  {id:'loading_ramp', name:'FRUIT RECEPTION / LOADING RAMP', icon:'🚛'},
+  {id:'sterilizer', name:'STERILIZER / REBUSAN', icon:'♨️'},
+  {id:'thresher', name:'THRESHER', icon:'⚙️'},
+  {id:'pressing', name:'PRESSING & DIGESTER', icon:'🔩'},
+  {id:'klarifikasi', name:'KLARIFIKASI', icon:'🧪'},
+  {id:'kernel', name:'KERNEL', icon:'🌰'},
+  {id:'boiler', name:'BOILER', icon:'🔥'},
+  {id:'power_house', name:'POWER HOUSE', icon:'⚡'},
+  {id:'wtp', name:'WTP (WATER TREATMENT PLANT)', icon:'💧'},
+  {id:'etp', name:'ETP (EFFLUENT TREATMENT PLANT)', icon:'🌿'},
+  {id:'bunch_press', name:'BUNCH PRESS', icon:'🔧'},
+  {id:'workshop', name:'WORKSHOP', icon:'🛠️'},
+  {id:'kantor', name:'KANTOR', icon:'🏢'},
+  {id:'lainnya', name:'LAINNYA', icon:'📌'},
+];
+
+const KET_BAHAN_LIST = [
+  {id:'sisa', name:'Bahan Sisa', icon:'♻️', desc:'Sisa dari pemakaian sebelumnya'},
+  {id:'bekas', name:'Bahan Bekas', icon:'🔄', desc:'Bahan yang telah digunakan, dipakai kembali'},
+  {id:'gudang', name:'Stok Gudang', icon:'🏪', desc:'Diambil dari stok gudang'},
+  {id:'baru', name:'Bahan Baru', icon:'🆕', desc:'Bahan baru / baru dibeli'},
+  {id:'bubutan', name:'Bahan Bubutan', icon:'⚙️', desc:'Hasil proses bubut / fabrikasi'},
+  {id:'dikeluarkan', name:'Dikeluarkan', icon:'📤', desc:'Dikeluarkan dari gudang dengan bukti'},
+  {id:'pinjam', name:'Pinjam Bagian Lain', icon:'🤝', desc:'Dipinjam dari departemen / bagian lain'},
+  {id:'return', name:'Return / Kembalian', icon:'↩️', desc:'Bahan dikembalikan / tidak jadi dipakai'},
+  {id:'titipan', name:'Bahan Titipan', icon:'📦', desc:'Dititipkan sementara dari pihak lain'},
+  {id:'tanpa', name:'Tanpa Bahan', icon:'🚫', desc:'Pekerjaan tidak memerlukan bahan'},
+];
+
+const WORKERS = [
+  {id:1, nama:'Muhlis', jabatan:'Mandor Mekanik'},
+  {id:2, nama:'A. Padillah', jabatan:'Plk. Elektrik'},
+  {id:3, nama:'Indra.L', jabatan:'Plk. Elektrik'},
+  {id:4, nama:'M. Yamin', jabatan:'Plk. Elektrik'},
+  {id:5, nama:'Oktaviadi', jabatan:'Krani Harnik'},
+  {id:6, nama:'Denis Wara Torikur Rozikin', jabatan:'Opt. Mesin Bubut'},
+  {id:7, nama:'Ahmad Rabani', jabatan:'Plk. Mekanik'},
+  {id:8, nama:'Imam Qudhori', jabatan:'Plk. Mekanik'},
+  {id:9, nama:'Saidinoor', jabatan:'Plk. Mekanik'},
+  {id:10, nama:'T.H Sunarji', jabatan:'Plk. Mekanik'},
+  {id:11, nama:'Misbahul Hair', jabatan:'Helper Mekanik'},
+  {id:12, nama:'Kurniawan', jabatan:'Helper Mekanik'},
+  {id:13, nama:'Rian Rifki', jabatan:'Helper Mekanik'},
+  {id:14, nama:'Arpani', jabatan:'Driver Traksi'},
+  {id:15, nama:'Wito Raharjo', jabatan:'Driver Traksi'},
+  {id:16, nama:'Puji Hari Sulistiyono', jabatan:'Opt.Excavator Long Arm'},
+];
+
+const SAMPLE_DATA = [
+  {id:1,bulan:'Januari',tanggal:'2026-01-02',stasiun:'pressing',shift:'Shift 1 (Siang)',jenis:'Bersihkan Motoran Stasiun Press Dan Klarifikasi',realisasi:'Pembersihan Motoran Stasiun Press Dan Klarifikasi',bahan:'',satuan:'',ketBahan:'',fisikProg:'',fisikReal:'',tkProg:3,tkReal:2,startProg:8,startReal:8,offProg:16,offReal:16.3,keterangan:'1',status:'1',namaPerkerja:'Muhlis, Ahmad Rabani',workerIds:[1,7],fileCount:0,files:[]},
+  {id:2,bulan:'Januari',tanggal:'2026-01-02',stasiun:'workshop',shift:'Shift 2 (Malam)',jenis:'Cek Sensor Parkir Loader',realisasi:'Pengecekan Sensor Parkir Loader (WO Proses)',bahan:'',satuan:'',ketBahan:'',fisikProg:'',fisikReal:'',tkProg:0,tkReal:1,startProg:8,startReal:8,offProg:16,offReal:18,keterangan:'WO Proses Selesai 100%',status:'Selesai 100%',namaPerkerja:'A. Padillah',workerIds:[2],fileCount:0,files:[]},
+  {id:3,bulan:'Januari',tanggal:'2026-01-02',stasiun:'loading_ramp',shift:'Shift 1 (Siang)',jenis:'Lumasi Pintu Loading Ramp 1-10',realisasi:'Pelumasan Pintu Loading Ramp 1-10',bahan:'Minyak Kernel',satuan:'Ltr',ketBahan:'Bahan Sisa',fisikProg:2,fisikReal:2,tkProg:0,tkReal:0,startProg:0,startReal:0,offProg:0,offReal:0,keterangan:'1',status:'1',namaPerkerja:'',workerIds:[],fileCount:0,files:[]},
+  {id:4,bulan:'Januari',tanggal:'2026-01-02',stasiun:'boiler',shift:'Shift 1 (Siang)',jenis:'Ganti Grease Bearing IDF, TAF, SAF',realisasi:'Penggantian Grease Bearing IDF, TAF, SAF',bahan:'Grease Neutronlub 099',satuan:'Kg',ketBahan:'Bahan Sisa',fisikProg:2,fisikReal:2,tkProg:2,tkReal:2,startProg:8,startReal:8,offProg:16,offReal:16,keterangan:'1',status:'1',namaPerkerja:'Muhlis, Imam Qudhori',workerIds:[1,8],fileCount:0,files:[]},
+  {id:5,bulan:'Januari',tanggal:'2026-01-02',stasiun:'klarifikasi',shift:'Shift 2 (Malam)',jenis:'Las Valve Pompa HDC.02',realisasi:'Pengelasan Valve Pompa HDC.02',bahan:'',satuan:'',ketBahan:'',fisikProg:'',fisikReal:'',tkProg:0,tkReal:0,startProg:0,startReal:0,offProg:0,offReal:0,keterangan:'1',status:'1',namaPerkerja:'',workerIds:[],fileCount:0,files:[]},
+  {id:6,bulan:'Januari',tanggal:'2026-01-02',stasiun:'thresher',shift:'Shift 1 (Siang)',jenis:'Lumasi All Chain Inclined Empty Bunch Cek Spiner',realisasi:'',bahan:'',satuan:'',ketBahan:'',fisikProg:'',fisikReal:'',tkProg:0,tkReal:0,startProg:0,startReal:0,offProg:0,offReal:0,keterangan:'Pending',status:'Pending',namaPerkerja:'',workerIds:[],fileCount:0,files:[]},
+  {id:7,bulan:'Februari',tanggal:'2026-02-03',stasiun:'boiler',shift:'Shift 1 (Siang)',jenis:'Perawatan Rutin Boiler',realisasi:'Pengecekan dan Pembersihan Boiler Rutin',bahan:'Oli Pelumas',satuan:'Ltr',ketBahan:'Bahan Sisa',fisikProg:2,fisikReal:2,tkProg:3,tkReal:3,startProg:8,startReal:8,offProg:16,offReal:16,keterangan:'1',status:'1',namaPerkerja:'Muhlis, Saidinoor, T.H Sunarji',workerIds:[1,9,10],fileCount:0,files:[]},
+  {id:8,bulan:'Februari',tanggal:'2026-02-05',stasiun:'etp',shift:'Shift 2 (Malam)',jenis:'Ganti Bearing Pompa Limbah',realisasi:'Penggantian Bearing Pompa Limbah No.1',bahan:'Bearing SKF 6205',satuan:'Pcs',ketBahan:'Dikeluarkan',fisikProg:1,fisikReal:1,tkProg:2,tkReal:2,startProg:8,startReal:9,offProg:16,offReal:17,keterangan:'1',status:'1',namaPerkerja:'Ahmad Rabani, Misbahul Hair',workerIds:[7,11],fileCount:0,files:[]},
+  {id:9,bulan:'Maret',tanggal:'2026-03-02',stasiun:'pressing',shift:'Shift 1 (Siang)',jenis:'Overhaul Press No.02',realisasi:'Overhaul Mesin Press No.02',bahan:'Kit Packing Press',satuan:'Set',ketBahan:'Dikeluarkan',fisikProg:1,fisikReal:1,tkProg:4,tkReal:4,startProg:7,startReal:7,offProg:17,offReal:18,keterangan:'Selesai 100%',status:'Selesai 100%',namaPerkerja:'Muhlis, Ahmad Rabani, Imam Qudhori, Saidinoor',workerIds:[1,7,8,9],fileCount:0,files:[]},
+  {id:10,bulan:'April',tanggal:'2026-04-01',stasiun:'thresher',shift:'Shift 2 (Malam)',jenis:'Ganti Oli Gearbox Thresher',realisasi:'Penggantian Oli Gearbox Drum Thresher',bahan:'Oli Gearbox SAE 90',satuan:'Ltr',ketBahan:'Dikeluarkan',fisikProg:10,fisikReal:10,tkProg:2,tkReal:2,startProg:8,startReal:8,offProg:12,offReal:12,keterangan:'1',status:'1',namaPerkerja:'Kurniawan, Rian Rifki',workerIds:[12,13],fileCount:0,files:[]},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+// Di dalam fungsi simpanData, tambahkan field synced
+const newData = {
+  // ... semua field yang sudah ada ...
+  synced: navigator.onLine,  // ← TAMBAHKAN INI
+};
+let DB = [];
+let nextId = 1;
+let selectedWorkers = [];
+let confirmedWorkers = [];
+let uploadedFiles = [];
+let selectedStasiunId = '';
+let tempStasiunId = '';
+let selectedKetBahanId = '';
+let editingId = null;
+let lightboxFiles = [];
+let lightboxIdx = 0;
+let pendingSync = false;
+let dbInstance = null;
+let useIndexedDB = false;
+let selectedShift = '';
+
+// ============================================================
+// INDEXEDDB FUNCTIONS
+// ============================================================
+function openIndexedDB() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) {
+      console.log('IndexedDB tidak didukung, fallback ke localStorage');
+      useIndexedDB = false;
+      resolve(false);
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => { useIndexedDB = false; resolve(false); };
+    request.onsuccess = (event) => {
+      dbInstance = event.target.result;
+      useIndexedDB = true;
+      console.log('IndexedDB connected');
+      resolve(true);
+    };
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('bulan', 'bulan', { unique: false });
+        store.createIndex('tanggal', 'tanggal', { unique: false });
+        store.createIndex('stasiun', 'stasiun', { unique: false });
+        store.createIndex('status', 'status', { unique: false });
+      }
+    };
+  });
+}
+
+async function saveToIndexedDB(data) {
+  if (!useIndexedDB || !dbInstance) return false;
+  return new Promise((resolve) => {
+    const transaction = dbInstance.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const clearRequest = store.clear();
+    clearRequest.onsuccess = () => {
+      if (data.length === 0) { resolve(true); return; }
+      let saved = 0;
+      data.forEach(item => {
+        const addRequest = store.add(item);
+        addRequest.onsuccess = () => { saved++; if (saved === data.length) resolve(true); };
+        addRequest.onerror = () => resolve(false);
+      });
+    };
+    clearRequest.onerror = () => resolve(false);
+  });
+}
+
+async function loadFromIndexedDB() {
+  if (!useIndexedDB || !dbInstance) return null;
+  return new Promise((resolve) => {
+    const transaction = dbInstance.transaction([STORE_NAME], 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function loadData() {
+  await openIndexedDB();
+  if (useIndexedDB) {
+    const indexedData = await loadFromIndexedDB();
+    if (indexedData && indexedData.length > 0) {
+      DB = indexedData;
+      nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
+      console.log('✅ Data from IndexedDB:', DB.length, 'records');
+      return DB;
+    }
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      DB = JSON.parse(raw);
+      nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
+      console.log('✅ Data from localStorage:', DB.length, 'records');
+      if (useIndexedDB && DB.length > 0) await saveToIndexedDB(DB);
+      return DB;
+    }
+  } catch(e) {}
+  DB = [...SAMPLE_DATA];
+  nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
+  console.log('✅ Data from SAMPLE_DATA:', DB.length, 'records');
+  if (useIndexedDB) await saveToIndexedDB(DB);
+  return DB;
+}
+
+async function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if (useIndexedDB && dbInstance) {
+    await saveToIndexedDB(data);
+  } else if (useIndexedDB) {
+    await openIndexedDB();
+    if (useIndexedDB && dbInstance) await saveToIndexedDB(data);
+  }
+  DB = data;
+}
+
+async function checkStorageInfo() {
+  let info = '📊 Storage Info:\n';
+  const localData = localStorage.getItem(STORAGE_KEY);
+  const localSize = localData ? new Blob([localData]).size : 0;
+  info += `localStorage: ${(localSize / 1024).toFixed(2)} KB\n`;
+  if (useIndexedDB && dbInstance) {
+    const data = await loadFromIndexedDB();
+    const indexedSize = data ? new Blob([JSON.stringify(data)]).size : 0;
+    info += `IndexedDB: ${(indexedSize / 1024).toFixed(2)} KB\n`;
+    info += `Total records: ${data ? data.length : 0}`;
+  }
+  toast(info);
+  return info;
+}
+
+async function backupData() {
+  const dataStr = JSON.stringify(DB, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_laporan_pks_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📦 Backup data berhasil diekspor');
+}
+
+async function restoreData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const restoredData = JSON.parse(e.target.result);
+      DB = restoredData;
+      await saveData(DB);
+      nextId = Math.max(...DB.map(d=>d.id||0), 0) + 1;
+      toast('📂 Data berhasil dipulihkan!');
+      if (document.getElementById('page-data').classList.contains('active')) {
+        renderTable();
+        renderStats();
+      }
+    } catch(err) {
+      toast('❌ File backup tidak valid', 'red');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>{
+    if(b.textContent.toLowerCase().includes(name==='input'?'input':name==='data'?'data':'laporan'))
+      b.classList.add('active');
+  });
+  if(name==='data') { renderStats(); renderTable(); populateStasiunFilter(); }
+  if(name==='laporan') { populateLapStasiunFilter(); renderLaporan(); }
+}
+
+// ============================================================
+// STASIUN FUNCTIONS
+// ============================================================
+function getStasiunInfo(id) { return STASIUN_LIST.find(s=>s.id===id)||{name:'—',icon:'📌'}; }
+function getStasiunName(id) { return id ? (STASIUN_LIST.find(s=>s.id===id)||{name:'—'}).name : '—'; }
+
+function openStasiunModal() {
+  tempStasiunId = selectedStasiunId;
+  renderStasiunList();
+  document.getElementById('stasiun-modal').classList.add('open');
+}
+
+function renderStasiunList() {
+  const el = document.getElementById('stasiun-list');
+  el.innerHTML = STASIUN_LIST.map(s=>{
+    const sel = tempStasiunId === s.id;
+    return `<div class="stasiun-item${sel?' selected':''}" onclick="selectStasiun('${s.id}')">
+      <div class="stasiun-icon">${s.icon}</div>
+      <div style="flex:1;"><div class="stasiun-name">${s.name}</div></div>
+      <div class="stasiun-check">✓</div>
+    </div>`;
+  }).join('');
+  document.getElementById('selected-stasiun-count').textContent = tempStasiunId
+    ? (STASIUN_LIST.find(s=>s.id===tempStasiunId)||{name:''}).name
+    : 'Belum dipilih';
+}
+
+function selectStasiun(id) { tempStasiunId = id; renderStasiunList(); }
+function confirmStasiun() { selectedStasiunId = tempStasiunId; document.getElementById('stasiun-modal').classList.remove('open'); updateStasiunDisplay(); toast(`🏭 Stasiun dipilih: ${getStasiunName(selectedStasiunId)}`); }
+function updateStasiunDisplay() {
+  const el = document.getElementById('selected-stasiun-display');
+  if(!selectedStasiunId) { el.innerHTML = `<span style="font-size:12px;color:var(--text-light);font-style:italic;">Belum ada stasiun dipilih...</span>`; return; }
+  const s = getStasiunInfo(selectedStasiunId);
+  el.innerHTML = `<span class="selected-stasiun-badge">${s.icon} ${s.name}</span>`;
+}
+
+// ============================================================
+// SHIFT FUNCTIONS
+// ============================================================
+function setShift(shift) {
+  selectedShift = shift;
+  const displayEl = document.getElementById('selected-shift-display');
+  if (displayEl) {
+    if (shift === 'Shift 1 (Siang)') {
+      displayEl.innerHTML = '✅ Shift dipilih: <strong>☀️ Shift 1 (Siang) - 08:00 s/d 16:00</strong>';
+      displayEl.style.color = '#2d6a4f';
+    } else if (shift === 'Shift 2 (Malam)') {
+      displayEl.innerHTML = '✅ Shift dipilih: <strong>🌙 Shift 2 (Malam) - 16:00 s/d 00:00</strong>';
+      displayEl.style.color = '#b45309';
+    }
+  }
+}
+
+function getShiftDisplay(shift) {
+  if (!shift) return '—';
+  if (shift === 'Shift 1 (Siang)') return '☀️ Shift 1 (Siang) 08:00-16:00';
+  if (shift === 'Shift 2 (Malam)') return '🌙 Shift 2 (Malam) 16:00-00:00';
+  return shift;
+}
+
+function resetShift() {
+  selectedShift = '';
+  const radio1 = document.querySelector('input[name="shift"][value="Shift 1 (Siang)"]');
+  const radio2 = document.querySelector('input[name="shift"][value="Shift 2 (Malam)"]');
+  if (radio1) radio1.checked = false;
+  if (radio2) radio2.checked = false;
+  const displayEl = document.getElementById('selected-shift-display');
+  if (displayEl) {
+    displayEl.innerHTML = '';
+    displayEl.style.color = 'var(--text-muted)';
+  }
+}
+
+// ============================================================
+// KET BAHAN FUNCTIONS
+// ============================================================
+function openKetBahanModal() {
+  const cur = document.getElementById('f-ket-bahan').value;
+  selectedKetBahanId = KET_BAHAN_LIST.find(k=>k.name===cur)?.id||'';
+  document.getElementById('ket-bahan-custom').value = '';
+  renderKetBahanList();
+  document.getElementById('ket-bahan-modal').classList.add('open');
+}
+
+function renderKetBahanList() {
+  const el = document.getElementById('ket-bahan-list');
+  el.innerHTML = KET_BAHAN_LIST.map(k=>{
+    const sel = selectedKetBahanId===k.id;
+    return `<div class="ket-bahan-item${sel?' selected':''}" onclick="selectKetBahan('${k.id}')">
+      <div class="ket-bahan-icon">${k.icon}</div>
+      <div style="flex:1;"><div class="ket-bahan-name">${k.name}</div><div class="ket-bahan-desc">${k.desc}</div></div>
+      <div class="ket-bahan-check">✓</div>
+    </div>`;
+  }).join('');
+}
+
+function selectKetBahan(id) { selectedKetBahanId = id; document.getElementById('ket-bahan-custom').value = ''; renderKetBahanList(); }
+function confirmKetBahan() {
+  const custom = document.getElementById('ket-bahan-custom').value.trim();
+  if(custom) document.getElementById('f-ket-bahan').value = custom;
+  else if(selectedKetBahanId) { const k = KET_BAHAN_LIST.find(x=>x.id===selectedKetBahanId); if(k) document.getElementById('f-ket-bahan').value = k.name; }
+  document.getElementById('ket-bahan-modal').classList.remove('open');
+}
+
+// ============================================================
+// UPLOAD FUNCTIONS
+// ============================================================
+function handleDragOver(e) { e.preventDefault(); document.getElementById('upload-area').classList.add('drag-over'); }
+function handleDragLeave() { document.getElementById('upload-area').classList.remove('drag-over'); }
+function handleDrop(e) { e.preventDefault(); document.getElementById('upload-area').classList.remove('drag-over'); handleFiles(e.dataTransfer.files); }
+function handleFiles(files) {
+  const remaining = 5 - uploadedFiles.length;
+  if(remaining<=0) { toast('❗ Maksimal 5 file','red'); return; }
+  Array.from(files).slice(0,remaining).forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = e2=>{ uploadedFiles.push({name:file.name,type:file.type,dataUrl:e2.target.result}); renderPreviews(); };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('f-upload').value='';
+}
+function renderPreviews() {
+  const el = document.getElementById('upload-previews');
+  if(!uploadedFiles.length) { el.innerHTML=''; return; }
+  el.innerHTML = uploadedFiles.map((f,i)=>{
+    const isImg = f.type.startsWith('image/');
+    const shortName = f.name.length>14?f.name.substring(0,11)+'...':f.name;
+    return `<div class="preview-item">${isImg?`<img src="${f.dataUrl}" alt="${f.name}" onclick="openLightbox([{dataUrl:'${f.dataUrl}',type:'${f.type}'}],0)" style="cursor:pointer;">`:`<div class="preview-doc"><span>📄</span>${shortName}</div>`}<button class="del-btn" onclick="removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+function removeFile(idx) { uploadedFiles.splice(idx,1); renderPreviews(); }
+
+// ============================================================
+// LIGHTBOX FUNCTIONS
+// ============================================================
+function openLightbox(files, idx) {
+  const imgs = files.filter(f=>f.type&&f.type.startsWith('image/'));
+  if(!imgs.length) return;
+  lightboxFiles = imgs;
+  lightboxIdx = idx;
+  showLightboxImg();
+  document.getElementById('lightbox').classList.add('open');
+}
+function showLightboxImg() { document.getElementById('lightbox-img').src = lightboxFiles[lightboxIdx].dataUrl||lightboxFiles[lightboxIdx].url||''; document.getElementById('lightbox-counter').textContent = `${lightboxIdx+1} / ${lightboxFiles.length}`; }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+function lightboxPrev() { lightboxIdx=(lightboxIdx-1+lightboxFiles.length)%lightboxFiles.length; showLightboxImg(); }
+function lightboxNext() { lightboxIdx=(lightboxIdx+1)%lightboxFiles.length; showLightboxImg(); }
+
+// ============================================================
+// WORKER FUNCTIONS
+// ============================================================
+function openWorkerModal() {
+  selectedWorkers=[...confirmedWorkers];
+  document.getElementById('worker-search').value='';
+  renderWorkerList('');
+  document.getElementById('worker-modal').classList.add('open');
+}
+function closeWorkerModal(e) { if(e && e.target!==document.getElementById('worker-modal')) return; document.getElementById('worker-modal').classList.remove('open'); }
+function filterWorkers() { renderWorkerList(document.getElementById('worker-search').value.toLowerCase()); }
+function renderWorkerList(q) {
+  const filtered = WORKERS.filter(w=>w.nama.toLowerCase().includes(q)||w.jabatan.toLowerCase().includes(q));
+  const el = document.getElementById('worker-list');
+  if(!filtered.length) { el.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-muted);">Tidak ditemukan</div>`; return; }
+  el.innerHTML = filtered.map(w=>{
+    const sel=selectedWorkers.includes(w.id);
+    const initials=w.nama.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="worker-item${sel?' selected':''}" onclick="toggleWorker(${w.id})"><div class="worker-avatar">${initials}</div><div style="flex:1;"><div class="worker-name">${w.nama}</div><div class="worker-jabatan">${w.jabatan}</div></div><div class="worker-check">✓</div></div>`;
+  }).join('');
+  document.getElementById('selected-count').textContent=`${selectedWorkers.length} pekerja dipilih`;
+}
+function toggleWorker(id) { const idx=selectedWorkers.indexOf(id); if(idx===-1) selectedWorkers.push(id); else selectedWorkers.splice(idx,1); renderWorkerList(document.getElementById('worker-search').value.toLowerCase()); }
+function confirmWorkers() { confirmedWorkers=[...selectedWorkers]; document.getElementById('worker-modal').classList.remove('open'); renderChips(); document.getElementById('f-tk-real').value=confirmedWorkers.length||''; toast(`✅ ${confirmedWorkers.length} pekerja dipilih`); }
+function renderChips() {
+  const el=document.getElementById('worker-chips');
+  if(!confirmedWorkers.length){el.innerHTML=`<span style="font-size:12px;color:var(--text-light);font-style:italic;">Belum ada pekerja dipilih...</span>`;return;}
+  el.innerHTML=confirmedWorkers.map(id=>{ const w=WORKERS.find(x=>x.id===id); if(!w) return ''; return `<span class="chip">${w.nama} <span style="opacity:0.6;">(${w.jabatan})</span><button class="chip-remove" onclick="removeChip(${id})">×</button></span>`; }).join('');
+}
+function removeChip(id){confirmedWorkers=confirmedWorkers.filter(x=>x!==id);document.getElementById('f-tk-real').value=confirmedWorkers.length||'';renderChips();}
+
+// ============================================================
+// FORM FUNCTIONS
+// ============================================================
+function resetForm() {
+  ['f-bulan','f-tanggal','f-jenis','f-realisasi','f-bahan','f-satuan','f-ket-bahan','f-fisik-prog','f-fisik-real','f-tk-prog','f-tk-real','f-start-prog','f-start-real','f-off-prog','f-off-real','f-keterangan'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('f-status').value='1';
+  confirmedWorkers=[]; selectedWorkers=[]; renderChips();
+  uploadedFiles=[]; renderPreviews();
+  selectedStasiunId=''; updateStasiunDisplay();
+  resetShift();
+  toast('Form direset ✓');
+}
+
+async function simpanData() {
+  const bulan=document.getElementById('f-bulan').value;
+  const tanggal=document.getElementById('f-tanggal').value;
+  if(!bulan||!tanggal) { toast('❗ Bulan dan Tanggal wajib diisi!','red'); return; }
+  if(!selectedStasiunId) { toast('❗ Pilih Stasiun terlebih dahulu!','red'); return; }
+
+  const namaPerkerja=confirmedWorkers.map(id=>{ const w=WORKERS.find(x=>x.id===id); return w?w.nama:''; }).filter(Boolean).join(', ');
+  const newData = {
+    id: nextId++,
+    bulan: bulan,
+    tanggal: tanggal,
+    stasiun: selectedStasiunId,
+    shift: selectedShift,
+    jenis: document.getElementById('f-jenis').value.trim()||'(Pekerjaan Tambahan)',
+    realisasi: document.getElementById('f-realisasi').value,
+    bahan: document.getElementById('f-bahan').value,
+    satuan: document.getElementById('f-satuan').value,
+    ketBahan: document.getElementById('f-ket-bahan').value,
+    fisikProg: document.getElementById('f-fisik-prog').value,
+    fisikReal: document.getElementById('f-fisik-real').value,
+    tkProg: +document.getElementById('f-tk-prog').value||0,
+    tkReal: confirmedWorkers.length||(+document.getElementById('f-tk-real').value||0),
+    namaPerkerja: namaPerkerja,
+    workerIds: [...confirmedWorkers],
+    startProg: +document.getElementById('f-start-prog').value||0,
+    startReal: +document.getElementById('f-start-real').value||0,
+    offProg: +document.getElementById('f-off-prog').value||0,
+    offReal: +document.getElementById('f-off-real').value||0,
+    keterangan: document.getElementById('f-keterangan').value,
+    status: document.getElementById('f-status').value,
+    fileCount: uploadedFiles.length,
+    files: uploadedFiles.map(f=>({name:f.name,type:f.type,dataUrl:f.dataUrl})),
+    createdAt: new Date().toISOString(),
+    synced: navigator.onLine,
+  };
+  DB.push(newData);
+  await saveData(DB);
+  if(!navigator.onLine) { pendingSync = true; document.getElementById('sync-status').innerHTML = '⚠️ Perlu sinkronisasi'; toast('📱 Offline mode: Data tersimpan lokal.', 'amber'); }
+  else { toast('✅ Kegiatan berhasil disimpan!'); }
+  const savedTanggal=tanggal; const savedBulan=bulan;
+  resetForm();
+  document.getElementById('f-tanggal').value=savedTanggal;
+  document.getElementById('f-bulan').value=savedBulan;
+}
+
+// ============================================================
+// EDIT FUNCTIONS
+// ============================================================
+function openEdit(id) {
+  editingId = id;
+  const d = DB.find(x=>x.id===id);
+  if(!d) return;
+  document.getElementById('edit-modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Bulan</label><select id="e-bulan">${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map(b=>`<option${b===d.bulan?' selected':''}>${b}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Tanggal</label><input type="date" id="e-tanggal" value="${d.tanggal||''}"></div>
+      </div>
+      <div class="form-group"><label>Stasiun</label><select id="e-stasiun">${STASIUN_LIST.map(s=>`<option value="${s.id}"${d.stasiun===s.id?' selected':''}>${s.icon} ${s.name}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Shift</label><select id="e-shift"><option value="">Pilih Shift</option><option value="Shift 1 (Siang)"${d.shift==='Shift 1 (Siang)'?' selected':''}>☀️ Shift 1 (Siang) 08:00-16:00</option><option value="Shift 2 (Malam)"${d.shift==='Shift 2 (Malam)'?' selected':''}>🌙 Shift 2 (Malam) 16:00-00:00</option></select></div>
+      <div class="form-group"><label>Jenis Pekerjaan</label><input type="text" id="e-jenis" value="${escapeHtml(d.jenis||'')}"></div>
+      <div class="form-group"><label>Realisasi</label><textarea id="e-realisasi">${escapeHtml(d.realisasi||'')}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Bahan</label><input type="text" id="e-bahan" value="${escapeHtml(d.bahan||'')}"></div>
+        <div class="form-group"><label>Satuan</label><select id="e-satuan">${['','Kg','Ltr','Pcs','Btg','Lbr','Set','Tbg','Unit','Psg','Mtr'].map(s=>`<option${s===d.satuan?' selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Ket. Bahan</label><input type="text" id="e-ket-bahan" value="${escapeHtml(d.ketBahan||'')}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Fisik Program</label><input type="text" id="e-fisik-prog" value="${d.fisikProg||''}"></div>
+        <div class="form-group"><label>Fisik Realisasi</label><input type="text" id="e-fisik-real" value="${d.fisikReal||''}"></div>
+        <div class="form-group"><label>TK Program</label><input type="number" id="e-tk-prog" value="${d.tkProg||0}"></div>
+        <div class="form-group"><label>TK Realisasi</label><input type="number" id="e-tk-real" value="${d.tkReal||0}"></div>
+      </div>
+      <div class="form-group"><label>Keterangan</label><input type="text" id="e-keterangan" value="${escapeHtml(d.keterangan||'')}"></div>
+      <div class="form-group"><label>Status</label><select id="e-status"><option value="1"${d.status==='1'?' selected':''}>✅ Selesai</option><option value="Selesai 100%"${d.status==='Selesai 100%'?' selected':''}>✅ Selesai 100%</option><option value="Pending"${d.status==='Pending'?' selected':''}>⏳ Pending</option><option value="Proses"${d.status==='Proses'?' selected':''}>🔄 Proses</option></select></div>
+    </div>
+  `;
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function simpanEdit() {
+  const d = DB.find(x=>x.id===editingId);
+  if(!d) return;
+  d.bulan = document.getElementById('e-bulan').value;
+  d.tanggal = document.getElementById('e-tanggal').value;
+  d.stasiun = document.getElementById('e-stasiun').value;
+  d.shift = document.getElementById('e-shift').value;
+  d.jenis = document.getElementById('e-jenis').value;
+  d.realisasi = document.getElementById('e-realisasi').value;
+  d.bahan = document.getElementById('e-bahan').value;
+  d.satuan = document.getElementById('e-satuan').value;
+  d.ketBahan = document.getElementById('e-ket-bahan').value;
+  d.fisikProg = document.getElementById('e-fisik-prog').value;
+  d.fisikReal = document.getElementById('e-fisik-real').value;
+  d.tkProg = +document.getElementById('e-tk-prog').value||0;
+  d.tkReal = +document.getElementById('e-tk-real').value||0;
+  d.keterangan = document.getElementById('e-keterangan').value;
+  d.status = document.getElementById('e-status').value;
+  await saveData(DB);
+  document.getElementById('edit-modal').classList.remove('open');
+  renderStats(); renderTable();
+  toast('✏️ Kegiatan berhasil diperbarui!');
+}
+
+// ============================================================
+// STATS & TABLE FUNCTIONS (DIPERBAIKI UNTUK SELESAI 100%)
+// ============================================================
+function isSelesai(s){
+  if (!s) return false;
+  if (s === '1') return true;
+  const lower = s.toLowerCase();
+  return lower === 'selesai' || lower === 'selesai 100%' || lower.includes('selesai');
+}
+
+function isSelesai100(s){
+  if (!s) return false;
+  const lower = s.toLowerCase();
+  return lower === 'selesai 100%' || (lower.includes('selesai') && lower.includes('100'));
+}
+
+function isPending(s){
+  if (!s) return false;
+  return s.toLowerCase().includes('pending');
+}
+
+function isProses(s){
+  if (!s) return false;
+  return s.toLowerCase().includes('proses');
+}
+
+function statusBadge(s){
+  if (isSelesai100(s)) return `<span class="badge badge-selesai">✅ Selesai 100%</span>`;
+  if (isSelesai(s)) return `<span class="badge badge-selesai">✅ Selesai</span>`;
+  if (isPending(s)) return `<span class="badge badge-pending">⏳ Pending</span>`;
+  if (isProses(s)) return `<span class="badge badge-proses">🔄 Proses</span>`;
+  return `<span class="badge">${s || '-'}</span>`;
+}
+
+function renderStats(){
+  const total = DB.length;
+  const selesai = DB.filter(d => isSelesai(d.status)).length;
+  const selesai100 = DB.filter(d => isSelesai100(d.status)).length;
+  const pending = DB.filter(d => isPending(d.status)).length;
+  const persen = total ? Math.round((selesai + selesai100) / total * 100) : 0;
+  document.getElementById('stats-container').innerHTML=`
+    <div class="stat-card green"><div class="stat-number">${total}</div><div class="stat-label">Total Kegiatan</div></div>
+    <div class="stat-card green"><div class="stat-number">${selesai + selesai100}</div><div class="stat-label">Selesai</div><div class="stat-sub">${selesai100} selesai 100%</div></div>
+    <div class="stat-card amber"><div class="stat-number">${pending}</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card blue"><div class="stat-number">${[...new Set(DB.map(d=>d.bulan))].length}</div><div class="stat-label">Bulan Aktif</div></div>`;
+}
+
+function populateStasiunFilter(){
+  const sel=document.getElementById('filter-stasiun');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Semua Stasiun</option>';
+  STASIUN_LIST.forEach(s=>{ if(DB.some(d=>d.stasiun===s.id)) sel.innerHTML+=`<option value="${s.id}"${cur===s.id?' selected':''}>${s.icon} ${s.name}</option>`; });
+}
+
+function formatTanggal(t){ if(!t) return '-'; const d=new Date(t+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }
+
+function openLightboxFromData(id){
+  const d=DB.find(x=>x.id===id);
+  if(!d||!d.files) return;
+  openLightbox(d.files,0);
+}
+
+async function hapusData(id){
+  if(!confirm('Hapus kegiatan ini?')) return;
+  DB=DB.filter(d=>d.id!==id);
+  await saveData(DB);
+  renderStats(); renderTable();
+  toast('🗑 Kegiatan dihapus');
+}
+
+function renderTable(){
+  const bulanF=document.getElementById('filter-bulan').value;
+  const statusF=document.getElementById('filter-status').value;
+  const searchF=document.getElementById('filter-search').value.toLowerCase();
+  const stasiunF=document.getElementById('filter-stasiun').value;
+  let rows=DB.filter(d=>{
+    if(bulanF&&d.bulan!==bulanF) return false;
+    if(statusF==='selesai'&&!isSelesai(d.status)) return false;
+    if(statusF==='selesai100'&&!isSelesai100(d.status)) return false;
+    if(statusF==='pending'&&!isPending(d.status)) return false;
+    if(statusF==='proses'&&!isProses(d.status)) return false;
+    if(stasiunF&&d.stasiun!==stasiunF) return false;
+    if(searchF&&!d.jenis.toLowerCase().includes(searchF)&&!(d.realisasi||'').toLowerCase().includes(searchF)) return false;
+    return true;
+  });
+  const tbody=document.getElementById('data-tbody');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="12"><div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Tidak ada data</div></div>NonNullable</td>`; return; }
+  tbody.innerHTML=rows.map((d,i)=>{
+    const sInfo=getStasiunInfo(d.stasiun);
+    const shiftClass = d.shift === 'Shift 1 (Siang)' ? 'badge-shift1' : 'badge-shift2';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600;">${d.bulan}</td>
+      <td>${formatTanggal(d.tanggal)}</span></td>
+      <td><span class="badge ${shiftClass}">${getShiftDisplay(d.shift)}</span></td>
+      <td><span class="badge-stasiun">${sInfo.icon} ${sInfo.name.length>20?sInfo.name.substring(0,18)+'…':sInfo.name}</span></td>
+      <td><div style="font-weight:500;">${d.jenis}</div>${d.realisasi?`<div style="font-size:11px;color:var(--text-muted);">${d.realisasi.substring(0,60)}${d.realisasi.length>60?'...':''}</div>`:''}${d.fileCount?`<div><button onclick='openLightboxFromData(${d.id})' style="background:#e0f2fe;color:#0369a1;border:none;border-radius:10px;padding:2px 7px;font-size:10px;cursor:pointer;">🖼 ${d.fileCount} foto</button></div>`:''}</td>
+      <td>${d.bahan||'—'}</td>
+      <td>${d.namaPerkerja?`<span style="font-size:11px;font-weight:600;">${d.namaPerkerja.split(', ').slice(0,2).join(', ')}${d.namaPerkerja.split(', ').length>2?' <span style="opacity:0.6;">+'+(d.namaPerkerja.split(', ').length-2)+' lagi</span>':''}</span>`:'—'}</td>
+      <td style="text-align:center;"><strong>${d.tkReal||'—'}</strong></td>
+      <td style="font-size:11px;">${d.startReal&&d.offReal?d.startReal+':00–'+d.offReal+':00':'—'}</td>
+      <td>${statusBadge(d.status)}</span></td>
+      <td><div style="display:flex;gap:4px;"><button class="btn btn-edit" onclick="openEdit(${d.id})">✏️ Edit</button><button class="btn btn-danger" onclick="hapusData(${d.id})">🗑</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// LAPORAN FUNCTIONS (DENGAN PERHITUNGAN TK YANG BENAR + SELESAI 100%)
+// ============================================================
+function populateLapStasiunFilter(){
+  const sel=document.getElementById('lap-stasiun');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Semua Stasiun</option>';
+  STASIUN_LIST.forEach(s=>{ sel.innerHTML+=`<option value="${s.id}"${cur===s.id?' selected':''}>${s.icon} ${s.name}</option>`; });
+}
+
+function renderLaporan(){
+  const type=document.getElementById('lap-type').value;
+  const tahun=document.getElementById('lap-tahun').value;
+  const bulanWrap=document.getElementById('lap-bulan-wrap');
+  bulanWrap.style.display=type==='bulanan'?'block':'none';
+  if(type==='bulanan') renderBulanan(document.getElementById('lap-bulan').value,tahun);
+  else renderTahunan(tahun);
+}
+
+function filterByBulanTahun(bulan,tahun){ return DB.filter(d=>d.bulan===bulan&&d.tanggal&&d.tanggal.startsWith(tahun)); }
+
+function getUniqueWorkerCount(data) {
+  const workerNames = new Set();
+  data.forEach(d => {
+    if (d.namaPerkerja) {
+      d.namaPerkerja.split(',').forEach(name => {
+        const trimmed = name.trim();
+        if (trimmed) workerNames.add(trimmed);
+      });
+    }
+  });
+  return workerNames.size;
+}
+
+function getTotalManDays(data) {
+  return data.reduce((sum, d) => sum + (+d.tkReal || 0), 0);
+}
+
+function renderBulanan(bulan, tahun){
+  const stasiunF = document.getElementById('lap-stasiun').value;
+  let data = filterByBulanTahun(bulan, tahun);
+  if(stasiunF) data = data.filter(d => d.stasiun === stasiunF);
+  
+  const selesai = data.filter(d => isSelesai(d.status)).length;
+  const selesai100 = data.filter(d => isSelesai100(d.status)).length;
+  const pending = data.filter(d => isPending(d.status)).length;
+  const proses = data.filter(d => isProses(d.status)).length;
+  const persen = data.length ? Math.round((selesai + selesai100) / data.length * 100) : 0;
+  
+  const totalTKUnik = getUniqueWorkerCount(data);
+  const totalManDays = getTotalManDays(data);
+  const totalFisik = data.filter(d => d.fisikReal !== '').reduce((a, d) => a + (+d.fisikReal || 0), 0);
+  
+  const stasiunGroups = {};
+  data.forEach(d => { const sid = d.stasiun || 'lainnya'; if(!stasiunGroups[sid]) stasiunGroups[sid] = []; stasiunGroups[sid].push(d); });
+  const stasiunOrder = STASIUN_LIST.map(s => s.id).filter(id => stasiunGroups[id]);
+  
+  let tableHTML = '';
+  if(data.length === 0){
+    tableHTML = `<div class="no-data-report"><div class="no-data-icon">📭</div><div class="no-data-text">Belum ada data untuk ${bulan} ${tahun}</div><div class="no-data-sub">Silakan input kegiatan terlebih dahulu</div></div>`;
+  } else {
+    let rowNum = 1;
+    tableHTML = `<div class="report-table-wrapper"><table class="report-table"><thead><tr>
+      <th>#</th><th>Tanggal</th><th>Shift</th><th>Stasiun</th><th>Jenis Pekerjaan</th><th>Tenaga Kerja</th><th>Fisik</th><th>Satuan</th><th>Status</th>
+    </tr></thead><tbody>`;
+    
+    stasiunOrder.forEach(sid => {
+      const sInfo = getStasiunInfo(sid);
+      const rows = stasiunGroups[sid];
+      const rowsSelesai = rows.filter(d => isSelesai(d.status)).length;
+      const rowsSelesai100 = rows.filter(d => isSelesai100(d.status)).length;
+      const rowsProses = rows.filter(d => isProses(d.status)).length;
+      const rowsPending = rows.filter(d => isPending(d.status)).length;
+      
+      tableHTML += `<tr><td colspan="9" style="padding:0;"><div class="station-group-header">
+        <span>${sInfo.icon}</span><span>${sInfo.name}</span>
+        <span class="station-badge">${rows.length} kegiatan</span>
+        <span class="station-badge">✅ ${rowsSelesai + rowsSelesai100} selesai</span>
+        <span class="station-badge">🔄 ${rowsProses} proses</span>
+        <span class="station-badge">⏳ ${rowsPending} pending</span>
+      </div></span></td>`;
+      
+      rows.forEach(d => {
+        const shiftClass = d.shift === 'Shift 1 (Siang)' ? 'badge-shift1' : 'badge-shift2';
+        tableHTML += `<tr>
+          <td style="text-align:center;">${rowNum++}</span></td>
+          <td style="white-space:nowrap;">${formatTanggal(d.tanggal)}</span></td>
+          <td><span class="badge ${shiftClass}" style="font-size:10px;">${getShiftDisplay(d.shift)}</span></span></td>
+          <td>${sInfo.icon} ${sInfo.name.length > 22 ? sInfo.name.substring(0,20)+'…' : sInfo.name}</span></td>
+          <td><div style="font-weight:500;">${d.jenis}</div>${d.realisasi ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${d.realisasi.substring(0,70)}${d.realisasi.length>70?'…':''}</div>` : ''}</span></td>
+          <td>${d.namaPerkerja || '—'}<br><small style="color:var(--text-muted);">${d.tkReal || 0} org</small></span></td>
+          <td style="text-align:center;font-weight:600;">${d.fisikReal || '—'}</span></td>
+          <td>${d.satuan || '—'}</span></td>
+          <td>${statusBadge(d.status)}</span></td>
+        </tr>`;
+      });
+      
+      const subTK = rows.reduce((a,d) => a + (+d.tkReal || 0), 0);
+      const subFisik = rows.filter(d => d.fisikReal !== '').reduce((a,d) => a + (+d.fisikReal || 0), 0);
+      const subUnique = getUniqueWorkerCount(rows);
+      
+      tableHTML += `<tr class="subtotal-row"><td colspan="5" style="text-align:right;font-weight:700;">SUB TOTAL ${sInfo.name}</span></td>
+        <td style="font-weight:700;">${subUnique} unik / ${subTK} MD</span></td>
+        <td style="text-align:center;font-weight:700;">${subFisik || '—'}</span></td>
+        <td colspan="2" style="font-weight:700;">${rowsSelesai + rowsSelesai100}/${rows.length} Selesai</span></td>
+      </tr>`;
+    });
+    tableHTML += `</tbody></table></div>`;
+  }
+  
+  document.getElementById('laporan-output').innerHTML = `
+    <div class="report-container">
+      <div class="report-header">
+        <small>PABRIK KELAPA SAWIT</small>
+        <div class="report-title">LAPORAN REKAPITULASI MAINTENANCE</div>
+        <div class="report-meta">Bulan ${bulan} ${tahun}${stasiunF ? ' · '+getStasiunName(stasiunF) : ''}</div>
+      </div>
+      <div class="report-summary-grid">
+        <div class="report-summary-item"><div class="rsi-num">${data.length}</div><div class="rsi-label">Total Kegiatan</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--accent);">${selesai + selesai100}</div><div class="rsi-label">Selesai</div><div class="rsi-label" style="font-size:9px;">${selesai100} selesai 100%</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--blue);">${proses}</div><div class="rsi-label">Proses</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--amber);">${pending}</div><div class="rsi-label">Pending</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--accent-dark);">${persen}%</div><div class="rsi-label">Realisasi</div></div>
+      </div>
+      <div class="report-progress-bar">
+        <div class="progress-track"><div class="progress-fill" style="width:${persen}%;"></div></div>
+        <div class="progress-stats"><span>Progress pencapaian target</span><span><strong>${persen}%</strong> dari target</span></div>
+      </div>
+      <div class="info-bar">
+        <div><span>👥 Tenaga Kerja (Unik):</span> <strong>${totalTKUnik} orang</strong></div>
+        <div><span>📅 Total Man-days:</span> <strong>${totalManDays} hari-orang</strong></div>
+        <div><span>📦 Total Fisik:</span> <strong>${totalFisik || '—'}</strong></div>
+      </div>
+      ${tableHTML}
+    </div>`;
+}
+
+function renderTahunan(tahun){
+  const stasiunF = document.getElementById('lap-stasiun').value;
+  const bulanList = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  let allData = DB.filter(d => d.tanggal && d.tanggal.startsWith(tahun));
+  if(stasiunF) allData = allData.filter(d => d.stasiun === stasiunF);
+  
+  const totalAll = allData.length;
+  const selesaiAll = allData.filter(d => isSelesai(d.status)).length;
+  const selesai100All = allData.filter(d => isSelesai100(d.status)).length;
+  const pendingAll = allData.filter(d => isPending(d.status)).length;
+  const prosesAll = allData.filter(d => isProses(d.status)).length;
+  const persenAll = totalAll ? Math.round((selesaiAll + selesai100All) / totalAll * 100) : 0;
+  
+  const totalTKUnikAll = getUniqueWorkerCount(allData);
+  const totalManDaysAll = getTotalManDays(allData);
+  
+  const stasiunSummary = {};
+  STASIUN_LIST.forEach(s => { 
+    const rows = allData.filter(d => d.stasiun === s.id); 
+    if(rows.length) {
+      stasiunSummary[s.id] = {
+        name: s.name, 
+        icon: s.icon, 
+        total: rows.length, 
+        selesai: rows.filter(d => isSelesai(d.status)).length,
+        selesai100: rows.filter(d => isSelesai100(d.status)).length,
+        uniqueWorkers: getUniqueWorkerCount(rows),
+        manDays: getTotalManDays(rows)
+      };
+    }
+  });
+  
+  const bulanRows = bulanList.map(b => { 
+    const d = allData.filter(x => x.bulan === b); 
+    if(!d.length) return `<tr style="opacity:0.6;"><td style="font-weight:600;">${b}</span></td><td style="text-align:center;">—</span></td><td style="text-align:center;">—</span></td><td style="text-align:center;">—</span></td><td style="text-align:center;">—</span></td><td style="text-align:center;">—</span></td><td><div style="background:var(--border);border-radius:10px;height:6px;"><div style="width:0%;height:100%;background:var(--accent);border-radius:10px;"></div></div></span></td><td style="text-align:center;">—</span></td>`;
+    const s = d.filter(x => isSelesai(x.status)).length;
+    const s100 = d.filter(x => isSelesai100(x.status)).length;
+    const p = d.filter(x => isPending(x.status)).length;
+    const pct = Math.round((s + s100) / d.length * 100);
+    const unik = getUniqueWorkerCount(d);
+    const md = getTotalManDays(d);
+    return `<tr><td style="font-weight:600;">${b}</span></td><td style="text-align:center;">${d.length}</span></td><td style="text-align:center;color:var(--accent);">${s + s100}</span></td><td style="text-align:center;color:var(--amber);">${p}</span></td><td style="text-align:center;">${unik}</span></td><td style="text-align:center;">${md}</span></td><td><div style="background:var(--border);border-radius:10px;height:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--accent);border-radius:10px;"></div></div></span></td><td style="text-align:center;">${statusBadge(pct>=80?'1':pct>0?'Proses':'Pending')}</span></td>`;
+  }).join('');
+  
+  const stasiunRows = Object.entries(stasiunSummary).map(([id, info]) => { 
+    const pct = Math.round((info.selesai + info.selesai100) / info.total * 100);
+    return `<tr><td style="font-weight:600;"><span style="display:inline-flex;align-items:center;gap:6px;">${info.icon} ${info.name}</span></span></td>
+      <td style="text-align:center;">${info.total}</span></td>
+      <td style="text-align:center;color:var(--accent);">${info.selesai + info.selesai100}</span></td>
+      <td style="text-align:center;color:var(--amber);">${info.total - (info.selesai + info.selesai100)}</span></td>
+      <td style="text-align:center;">${info.uniqueWorkers}</span></td>
+      <td style="text-align:center;">${info.manDays}</span><td>
+      <td><div style="background:var(--border);border-radius:10px;height:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--teal);border-radius:10px;"></div></div></span></td>
+      <td style="text-align:center;">${statusBadge(pct>=80?'1':pct>0?'Proses':'Pending')}</span></td>
+    </table>`;
+  }).join('');
+  
+  document.getElementById('laporan-output').innerHTML = `
+    <div class="report-container">
+      <div class="report-header">
+        <small>PABRIK KELAPA SAWIT</small>
+        <div class="report-title">LAPORAN TAHUNAN MAINTENANCE</div>
+        <div class="report-meta">Tahun ${tahun}${stasiunF ? ' · '+getStasiunName(stasiunF) : ''}</div>
+      </div>
+      <div class="report-summary-grid">
+        <div class="report-summary-item"><div class="rsi-num">${totalAll}</div><div class="rsi-label">Total Kegiatan</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--accent);">${selesaiAll + selesai100All}</div><div class="rsi-label">Selesai</div><div class="rsi-label" style="font-size:9px;">${selesai100All} selesai 100%</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--blue);">${prosesAll}</div><div class="rsi-label">Proses</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--amber);">${pendingAll}</div><div class="rsi-label">Pending</div></div>
+        <div class="report-summary-item"><div class="rsi-num" style="color:var(--accent-dark);">${persenAll}%</div><div class="rsi-label">Realisasi</div></div>
+      </div>
+      <div class="report-progress-bar">
+        <div class="progress-track"><div class="progress-fill" style="width:${persenAll}%;"></div></div>
+        <div class="progress-stats"><span>Realisasi tahunan</span><span><strong>${persenAll}%</strong> dari target</span></div>
+      </div>
+      <div class="info-bar">
+        <div><span>👥 Tenaga Kerja (Unik):</span> <strong>${totalTKUnikAll} orang</strong></div>
+        <div><span>📅 Total Man-days:</span> <strong>${totalManDaysAll} hari-orang</strong></div>
+      </div>
+      <div style="padding:16px 20px 0;"><div style="font-weight:700;font-size:13px;color:var(--accent-dark);">📊 Ringkasan Per Bulan</div></div>
+      <div class="report-table-wrapper"><table class="report-table"><thead><tr><th>Bulan</th><th>Total</th><th>Selesai</th><th>Pending</th><th>Unik Pekerja</th><th>Man-days</th><th>Progress</th><th>Status</th></tr></thead><tbody>${bulanRows}<tr style="background:var(--accent-light);font-weight:700;"><td>TOTAL</span><td>${totalAll}</span><td>${selesaiAll + selesai100All}</span><td>${pendingAll}</span><td>${totalTKUnikAll}</span><td>${totalManDaysAll}</span><td>${persenAll}%</span><td>${statusBadge(persenAll>=80?'1':persenAll>0?'Proses':'Pending')}</span></tr></tbody></table></div>
+      ${Object.keys(stasiunSummary).length ? `<div style="padding:16px 20px 0;"><div style="font-weight:700;font-size:13px;color:var(--accent-dark);">🏭 Ringkasan Per Stasiun</div></div><div class="report-table-wrapper"><table class="report-table"><thead><tr><th>Stasiun</th><th>Total</th><th>Selesai</th><th>Pending</th><th>Unik Pekerja</th><th>Man-days</th><th>Progress</th><th>Status</th></tr></thead><tbody>${stasiunRows}</tbody></table></div>` : ''}
+    </div>`;
+}
+
+// ============================================================
+// EXPORT & PRINT FUNCTIONS
+// ============================================================
+function eksporXLSX(){
+  const bulanF=document.getElementById('filter-bulan').value;
+  const statusF=document.getElementById('filter-status').value;
+  const stasiunF=document.getElementById('filter-stasiun').value;
+  const searchF=document.getElementById('filter-search').value.toLowerCase();
+  let rows=DB.filter(d=>{
+    if(bulanF&&d.bulan!==bulanF) return false;
+    if(statusF==='selesai'&&!isSelesai(d.status)) return false;
+    if(statusF==='selesai100'&&!isSelesai100(d.status)) return false;
+    if(statusF==='pending'&&!isPending(d.status)) return false;
+    if(statusF==='proses'&&!isProses(d.status)) return false;
+    if(stasiunF&&d.stasiun!==stasiunF) return false;
+    if(searchF&&!d.jenis.toLowerCase().includes(searchF)&&!(d.realisasi||'').toLowerCase().includes(searchF)) return false;
+    return true;
+  });
+  if(!rows.length){ toast('❗ Tidak ada data untuk diekspor','red'); return; }
+  const wb = XLSX.utils.book_new();
+  const headers=['NO','BULAN','TANGGAL','SHIFT','STASIUN','JENIS PEKERJAAN','REALISASI','BAHAN','SATUAN','KET BAHAN','FISIK PROG','FISIK REAL','TK PROG','TK REAL','NAMA PEKERJA','JAM START PROG','JAM START REAL','JAM OFF PROG','JAM OFF REAL','KETERANGAN','STATUS'];
+  const dataRows=rows.map((d,i)=>[i+1,d.bulan,d.tanggal,getShiftDisplay(d.shift),getStasiunName(d.stasiun),d.jenis||'',d.realisasi||'',d.bahan||'',d.satuan||'',d.ketBahan||'',d.fisikProg||'',d.fisikReal||'',d.tkProg||0,d.tkReal||0,d.namaPerkerja||'',d.startProg||'',d.startReal||'',d.offProg||'',d.offReal||'',d.keterangan||'',isSelesai100(d.status)?'Selesai 100%':isSelesai(d.status)?'Selesai':isPending(d.status)?'Pending':isProses(d.status)?'Proses':d.status||'']);
+  const ws1=XLSX.utils.aoa_to_sheet([headers,...dataRows]);
+  XLSX.utils.book_append_sheet(wb,ws1,'Data Kegiatan');
+  const tahun=new Date().getFullYear();
+  XLSX.writeFile(wb,`Laporan_Maintenance_PKS_${bulanF||'Semua'}_${tahun}.xlsx`);
+  toast('📥 File XLSX berhasil diunduh!');
+}
+
+function cetakLaporan(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('print-target'));
+  document.getElementById('page-laporan').classList.add('print-target');
+  window.print();
+}
+
+// ============================================================
+// STATUS & TOAST
+// ============================================================
+function updateConnectionStatus() {
+  const statusIcon = document.getElementById('status-icon');
+  const statusText = document.getElementById('status-text');
+  const statusBar = document.getElementById('status-bar');
+  if (navigator.onLine) {
+    if(statusIcon) statusIcon.innerHTML = '🟢';
+    if(statusText) statusText.innerHTML = 'Online';
+    if(statusBar) statusBar.style.background = '#1b4332';
+  } else {
+    if(statusIcon) statusIcon.innerHTML = '🔴';
+    if(statusText) statusText.innerHTML = 'Offline (Data disimpan lokal)';
+    if(statusBar) statusBar.style.background = '#b45309';
+  }
+}
+
+function toast(msg, type){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.background=type==='red'?'var(--red)':type==='amber'?'var(--amber)':'var(--accent-dark)';
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+window.addEventListener('online', () => { updateConnectionStatus(); toast('🌐 Koneksi kembali online!'); });
+window.addEventListener('offline', () => { updateConnectionStatus(); toast('📴 Koneksi terputus. Data akan disimpan lokal.', 'amber'); });
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadData();
+  const today = new Date().toISOString().split('T')[0];
+  const tanggalEl = document.getElementById('f-tanggal');
+  if(tanggalEl) tanggalEl.value = today;
+  const months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const curMonth = new Date().getMonth() + 1;
+  const bulanEl = document.getElementById('f-bulan');
+  if(bulanEl) bulanEl.value = months[curMonth];
+  const lapBulanEl = document.getElementById('lap-bulan');
+  if(lapBulanEl) lapBulanEl.value = months[curMonth] || 'Januari';
+  populateLapStasiunFilter();
+  updateStasiunDisplay();
+  updateConnectionStatus();
+  console.log('✅ Aplikasi siap dengan IndexedDB mode:', useIndexedDB);
+});
+// ============================================================
+// GOOGLE SHEETS SYNC - TERINTEGRASI
+// ============================================================
+
+// GANTI DENGAN URL WEB APP ANDA!
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyXXXXXX/exec';
+
+let deviceId = '';
+
+// Generate atau ambil device ID unik
+function getDeviceId() {
+  let id = localStorage.getItem('pks_device_id');
+  if (!id) {
+    id = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+    localStorage.setItem('pks_device_id', id);
+  }
+  return id;
+}
+
+// Sinkronisasi data ke Google Sheets
+async function syncToCloud(showToastMsg = true) {
+  if (!navigator.onLine) {
+    if (showToastMsg) toast('📴 Tidak ada koneksi internet', 'amber');
+    return false;
+  }
+  
+  if (showToastMsg) toast('🔄 Sinkronisasi ke cloud...');
+  
+  try {
+    // Siapkan data tanpa files base64 (untuk efisiensi)
+    const dataToSync = DB.map(item => ({
+      id: item.id,
+      bulan: item.bulan,
+      tanggal: item.tanggal,
+      stasiun: item.stasiun,
+      shift: item.shift || '',
+      jenis: item.jenis || '',
+      realisasi: item.realisasi || '',
+      bahan: item.bahan || '',
+      satuan: item.satuan || '',
+      ketBahan: item.ketBahan || '',
+      fisikProg: item.fisikProg || '',
+      fisikReal: item.fisikReal || '',
+      tkProg: item.tkProg || 0,
+      tkReal: item.tkReal || 0,
+      namaPerkerja: item.namaPerkerja || '',
+      startProg: item.startProg || 0,
+      startReal: item.startReal || 0,
+      offProg: item.offProg || 0,
+      offReal: item.offReal || 0,
+      keterangan: item.keterangan || '',
+      status: item.status || '',
+      fileCount: item.fileCount || 0
+    }));
+    
+    const response = await fetch(GOOGLE_SHEETS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sync',
+        records: dataToSync,
+        deviceId: deviceId
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      if (showToastMsg) toast(`✅ ${result.message}`);
+      
+      // Tandai semua data sebagai sudah tersinkron
+      DB.forEach(item => { item.synced = true; });
+      await saveData(DB);
+      
+      return true;
+    } else {
+      throw new Error(result.message);
+    }
+  } catch (error) {
+    console.error('Sync error:', error);
+    if (showToastMsg) toast(`❌ Gagal sync: ${error.message}`, 'red');
+    return false;
+  }
+}
+
+// Ambil data dari cloud
+async function pullFromCloud(showToastMsg = true) {
+  if (!navigator.onLine) {
+    if (showToastMsg) toast('📴 Tidak ada koneksi internet', 'amber');
+    return false;
+  }
+  
+  if (showToastMsg) toast('📥 Mengambil data dari cloud...');
+  
+  try {
+    const response = await fetch(GOOGLE_SHEETS_URL + '?action=getAll');
+    const result = await response.json();
+    
+    if (result.success && result.records) {
+      const existingIds = new Set(DB.map(d => d.id));
+      let newCount = 0;
+      let updateCount = 0;
+      
+      result.records.forEach(cloudItem => {
+        if (!existingIds.has(cloudItem.id)) {
+          // Data baru dari cloud
+          DB.push({
+            ...cloudItem,
+            files: [],
+            synced: true
+          });
+          newCount++;
+        }
+      });
+      
+      if (newCount > 0) {
+        // Update nextId
+        nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
+        await saveData(DB);
+        
+        if (showToastMsg) toast(`📥 ${newCount} data baru dari cloud`);
+        
+        // Refresh tampilan
+        if (document.getElementById('page-data').classList.contains('active')) {
+          renderTable();
+          renderStats();
+        }
+        if (document.getElementById('page-laporan').classList.contains('active')) {
+          renderLaporan();
+        }
+      } else {
+        if (showToastMsg) toast('✅ Data sudah terbaru');
+      }
+      return true;
+    }
+  } catch (error) {
+    console.error('Pull error:', error);
+    if (showToastMsg) toast('❌ Gagal mengambil data', 'red');
+    return false;
+  }
+  return false;
+}
+
+// Sinkronisasi dua arah
+async function fullSync() {
+  if (!navigator.onLine) {
+    toast('📴 Tidak ada koneksi internet', 'amber');
+    return false;
+  }
+  
+  toast('🔄 Sinkronisasi dua arah...');
+  
+  // Push ke cloud
+  const pushSuccess = await syncToCloud(false);
+  
+  // Pull dari cloud
+  const pullSuccess = await pullFromCloud(false);
+  
+  if (pushSuccess || pullSuccess) {
+    toast('✅ Sinkronisasi selesai');
+    return true;
+  } else {
+    toast('❌ Sinkronisasi gagal', 'red');
+    return false;
+  }
+}
+
+// Tambah tombol sync di halaman Data
+function addSyncButtons() {
+  const toolbar = document.querySelector('#page-data .filter-bar');
+  if (toolbar && !document.getElementById('sync-cloud-btn')) {
+    toolbar.insertAdjacentHTML('beforeend', `
+      <button class="btn btn-primary btn-sm" id="sync-cloud-btn" onclick="fullSync()" title="Sinkronisasi dua arah">☁️ Sync Cloud</button>
+      <button class="btn btn-secondary btn-sm" id="pull-cloud-btn" onclick="pullFromCloud(true)" title="Ambil data dari cloud">📥 Pull</button>
+    `);
+  }
+}
+
+// Update fungsi simpanData agar sync otomatis
+const originalSimpanData = simpanData;
+window.simpanData = async function() {
+  await originalSimpanData();
+  if (navigator.onLine) {
+    setTimeout(() => syncToCloud(false), 1000);
+  }
+};
+
+// Update fungsi simpanEdit agar sync otomatis
+const originalSimpanEdit = simpanEdit;
+window.simpanEdit = async function() {
+  await originalSimpanEdit();
+  if (navigator.onLine) {
+    setTimeout(() => syncToCloud(false), 1000);
+  }
+};
+
+// Update fungsi hapusData agar sync otomatis
+const originalHapusData = hapusData;
+window.hapusData = async function(id) {
+  await originalHapusData(id);
+  if (navigator.onLine) {
+    setTimeout(() => syncToCloud(false), 1000);
+  }
+};
+
+// Inisialisasi
+deviceId = getDeviceId();
+console.log('📱 Device ID:', deviceId);
+console.log('☁️ Cloud Sync URL:', GOOGLE_SHEETS_URL);
+
+// Tambah tombol sync setelah DOM siap
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addSyncButtons);
+} else {
+  addSyncButtons();
+}
+
+// Sync otomatis pertama kali (opsional)
+if (navigator.onLine) {
+  setTimeout(() => {
+    console.log('🔄 Auto sync on startup...');
+    syncToCloud(false);
+  }, 5000);
+}
+
+</script>
+</body>
+</html>
