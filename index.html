@@ -1687,6 +1687,198 @@ window.addEventListener('online', () => { updateConnectionStatus(); toast('🌐 
 window.addEventListener('offline', () => { updateConnectionStatus(); toast('📴 Koneksi terputus. Data akan disimpan lokal.', 'amber'); });
 
 // ============================================================
+// SINKRONISASI SHEET.BEST (CLOUD BACKUP)
+// ============================================================
+
+// GANTI DENGAN URL SHEET.BEST ANDA!
+// Daftar di https://sheet.best jika belum punya
+const SHEET_BEST_URL = 'https://api.sheetbest.com/sheets/fd25bcb4-65cb-40fe-ad53-c8281ff4dd85';
+
+let deviceId = localStorage.getItem('pks_device_id');
+if (!deviceId) {
+  deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+  localStorage.setItem('pks_device_id', deviceId);
+}
+console.log('📱 Device ID:', deviceId);
+
+// Sinkronisasi ke cloud
+async function syncToCloud(showToastMsg = true) {
+  if (!navigator.onLine) {
+    if (showToastMsg) toast('📴 Tidak ada koneksi', 'amber');
+    return false;
+  }
+  
+  if (showToastMsg) toast('🔄 Sinkronisasi ke cloud...');
+  
+  try {
+    // Siapkan data (tanpa base64 files)
+    const dataToSync = DB.map(item => ({
+      id: item.id,
+      bulan: item.bulan,
+      tanggal: item.tanggal,
+      stasiun: item.stasiun,
+      shift: item.shift || '',
+      jenis: item.jenis || '',
+      realisasi: item.realisasi || '',
+      bahan: item.bahan || '',
+      satuan: item.satuan || '',
+      ketBahan: item.ketBahan || '',
+      fisikProg: item.fisikProg || '',
+      fisikReal: item.fisikReal || '',
+      tkProg: item.tkProg || 0,
+      tkReal: item.tkReal || 0,
+      namaPerkerja: item.namaPerkerja || '',
+      startProg: item.startProg || 0,
+      startReal: item.startReal || 0,
+      offProg: item.offProg || 0,
+      offReal: item.offReal || 0,
+      keterangan: item.keterangan || '',
+      status: item.status || '',
+      fileCount: item.fileCount || 0,
+      syncedAt: new Date().toISOString(),
+      deviceId: deviceId
+    }));
+    
+    // Hapus data lama di sheet
+    await fetch(SHEET_BEST_URL, { method: 'DELETE' });
+    
+    // Kirim data baru
+    const response = await fetch(SHEET_BEST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dataToSync)
+    });
+    
+    if (response.ok) {
+      if (showToastMsg) toast(`✅ Sync: ${dataToSync.length} data`);
+      console.log('✅ Sync success:', dataToSync.length, 'records');
+      return true;
+    } else {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+  } catch (error) {
+    console.error('Sync error:', error);
+    if (showToastMsg) toast('❌ Gagal sinkronisasi: ' + error.message, 'red');
+    return false;
+  }
+}
+
+// Ambil data dari cloud
+async function pullFromCloud(showToastMsg = true) {
+  if (!navigator.onLine) {
+    if (showToastMsg) toast('📴 Tidak ada koneksi', 'amber');
+    return false;
+  }
+  
+  if (showToastMsg) toast('📥 Mengambil data dari cloud...');
+  
+  try {
+    const response = await fetch(SHEET_BEST_URL);
+    const cloudData = await response.json();
+    
+    if (cloudData && cloudData.length > 0) {
+      const existingIds = new Set(DB.map(d => d.id));
+      let newCount = 0;
+      
+      cloudData.forEach(cloudItem => {
+        if (!existingIds.has(cloudItem.id)) {
+          DB.push({
+            ...cloudItem,
+            files: [],
+            synced: true
+          });
+          newCount++;
+        }
+      });
+      
+      if (newCount > 0) {
+        nextId = Math.max(...DB.map(d => d.id || 0), 0) + 1;
+        await saveData(DB);
+        if (showToastMsg) toast(`📥 ${newCount} data baru dari cloud`);
+        
+        // Refresh tampilan
+        if (document.getElementById('page-data').classList.contains('active')) {
+          renderTable();
+          renderStats();
+        }
+        if (document.getElementById('page-laporan').classList.contains('active')) {
+          renderLaporan();
+        }
+      } else {
+        if (showToastMsg) toast('✅ Data sudah terbaru');
+      }
+      return true;
+    } else {
+      if (showToastMsg) toast('☁️ Cloud kosong, belum ada data');
+      return true;
+    }
+  } catch (error) {
+    console.error('Pull error:', error);
+    if (showToastMsg) toast('❌ Gagal mengambil data: ' + error.message, 'red');
+    return false;
+  }
+}
+
+// Sinkronisasi dua arah
+async function fullSync() {
+  if (!navigator.onLine) {
+    toast('📴 Tidak ada koneksi', 'amber');
+    return;
+  }
+  
+  toast('🔄 Sinkronisasi dua arah...');
+  
+  const pushSuccess = await syncToCloud(false);
+  const pullSuccess = await pullFromCloud(false);
+  
+  if (pushSuccess || pullSuccess) {
+    toast('✅ Sinkronisasi selesai');
+  } else {
+    toast('❌ Sinkronisasi gagal', 'red');
+  }
+}
+
+// Tambah tombol sync ke filter bar
+function addSyncButtons() {
+  const toolbar = document.querySelector('#page-data .filter-bar');
+  if (toolbar && !document.getElementById('sync-cloud-btn')) {
+    toolbar.insertAdjacentHTML('beforeend', `
+      <button class="btn btn-primary btn-sm" id="sync-cloud-btn" onclick="fullSync()" title="Sinkronisasi dua arah">☁️ Sync Cloud</button>
+      <button class="btn btn-secondary btn-sm" id="pull-cloud-btn" onclick="pullFromCloud(true)" title="Ambil data dari cloud">📥 Pull</button>
+    `);
+    console.log('✅ Sync buttons added to toolbar');
+  } else {
+    console.log('⚠️ Toolbar not found or buttons already exist');
+  }
+}
+
+// Auto sync setelah simpan
+const originalSimpanData = window.simpanData;
+window.simpanData = async function() {
+  const result = await originalSimpanData();
+  if (navigator.onLine && result !== false) {
+    setTimeout(() => syncToCloud(false), 1000);
+  }
+  return result;
+};
+
+// Auto sync setelah edit
+const originalSimpanEdit = window.simpanEdit;
+window.simpanEdit = async function() {
+  await originalSimpanEdit();
+  if (navigator.onLine) {
+    setTimeout(() => syncToCloud(false), 1000);
+  }
+};
+
+// Jalankan saat halaman siap
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addSyncButtons);
+} else {
+  addSyncButtons();
+}
+  // ============================================================
 // INISIALISASI
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
